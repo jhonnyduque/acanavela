@@ -1,0 +1,7 @@
+{
+  "name": "Acanavela Fritida - Gestión de Pastelería Pro",
+  "description": "Sistema de gestión de élite para el obrador Acanavela Fritida. Gestión de pedidos, clientes e inteligencia artificial aplicada a la repostería.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

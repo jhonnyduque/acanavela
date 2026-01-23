@@ -270,6 +270,7 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {/* SIDEBAR RESPONSIVO */}
       <aside className={`fixed inset-y-0 left-0 z-50 w-72 bg-slate-900 text-white transform transition-transform duration-300 lg:translate-x-0 lg:static border-r border-slate-800 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex flex-col h-full">
           <div className="p-8 border-b border-slate-800/50 flex justify-between items-center">
@@ -277,9 +278,9 @@ const App: React.FC = () => {
               <div className="w-10 h-10 bg-emerald-500 rounded-2xl flex items-center justify-center font-semibold text-xl">A</div>
               <div><h1 className="text-xl font-semibold tracking-tighter">Acanavela</h1><p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Obrador</p></div>
             </div>
-            <button onClick={toggleSidebar} className="lg:hidden p-2 text-slate-400"><X size={20} /></button>
+            <button onClick={toggleSidebar} className="lg:hidden p-2 text-slate-400 hover:text-white transition-colors"><X size={24} /></button>
           </div>
-          <nav className="flex-1 px-4 py-8 space-y-1.5 overflow-y-auto">
+          <nav className="flex-1 px-4 py-8 space-y-1.5 overflow-y-auto custom-scroll">
             {menuItems.map(item => (
               <button key={item.id} onClick={() => { setActiveTab(item.id); if (isSidebarOpen) toggleSidebar(); }} className={`w-full flex items-center gap-4 px-5 py-4 rounded-2xl transition-all ${activeTab === item.id ? 'bg-emerald-500 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'}`}>
                 <item.icon size={22} /><span className="font-medium text-[15px]">{item.label}</span>
@@ -302,26 +303,26 @@ const App: React.FC = () => {
         </div>
       </aside>
 
+      {/* BACKDROP PARA MÓVIL */}
+      {isSidebarOpen && (
+        <div onClick={toggleSidebar} className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-40 lg:hidden animate-in fade-in"></div>
+      )}
+
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <header className="h-20 bg-white border-b border-slate-200 flex items-center px-8 no-print shrink-0">
-          <button onClick={toggleSidebar} className="lg:hidden mr-6 p-2 rounded-xl bg-slate-100 text-slate-600"><Menu size={24} /></button>
+        {/* HEADER RESPONSIVO */}
+        <header className="h-20 bg-white border-b border-slate-200 flex items-center px-4 md:px-8 no-print shrink-0">
+          <button onClick={toggleSidebar} className="lg:hidden mr-4 p-2.5 rounded-xl bg-slate-100 text-slate-600 active:scale-90 transition-transform"><Menu size={24} /></button>
           <div className="flex-1 flex items-center justify-between">
-            <h2 className="text-sm font-medium text-slate-400 uppercase tracking-widest">{menuItems.find(m => m.id === activeTab)?.label}</h2>
+            <h2 className="text-[10px] md:text-sm font-bold text-slate-400 uppercase tracking-widest truncate">{menuItems.find(m => m.id === activeTab)?.label}</h2>
             <div className="flex items-center gap-3">
-              <button 
-                onClick={(e) => handleLogout(e)}
-                className="p-2.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"
-                title="Cerrar Sesión"
-              >
-                <LogOut size={20} />
-              </button>
-              <button onClick={() => setActiveTab('register')} className="flex items-center gap-2 px-5 py-2.5 bg-emerald-500 text-white text-[10px] font-semibold uppercase tracking-widest rounded-2xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95">
+              <button onClick={() => setActiveTab('register')} className="flex items-center gap-2 px-4 md:px-5 py-2.5 bg-emerald-500 text-white text-[10px] font-bold uppercase tracking-widest rounded-2xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/20 active:scale-95">
                 <Plus size={16} /> <span className="hidden sm:inline">Nuevo Pedido</span>
               </button>
             </div>
           </div>
         </header>
-        <main className="flex-1 overflow-y-auto p-6 md:p-10">
+
+        <main className="flex-1 overflow-y-auto p-4 md:p-10 custom-scroll">
           <div className="max-w-[1400px] mx-auto">
             {activeTab === 'dashboard' && <Dashboard orders={orders} onGoToOrders={() => setActiveTab('orders')} />}
             {activeTab === 'register' && <OrderForm onSave={handleSaveOrder} customers={customers} editingOrder={editingOrder} onCancel={() => { setEditingOrder(null); setActiveTab('orders'); }} />}
@@ -330,7 +331,7 @@ const App: React.FC = () => {
                setOrders(updated);
                storageService.saveOrders(updated);
                showNotification(`Estado: ${s}`, 'success');
-            }} onEdit={handleEditRequest} onView={setViewingOrder} onNewOrder={() => setActiveTab('register')} />}
+            }} onEdit={handleEditRequest} onView={setViewingOrder} />}
             {activeTab === 'customers' && <CustomerList customers={customers} orders={orders} onSave={handleSaveCustomers} onNewOrder={() => setActiveTab('register')} />}
             {activeTab === 'calendar' && <CalendarView orders={orders} onOrderClick={setViewingOrder} />}
             {activeTab === 'stats' && <StatsView orders={orders} />}
@@ -345,84 +346,75 @@ const App: React.FC = () => {
         </main>
       </div>
 
-      {/* MODAL DETALLE DE PEDIDO (Rediseñado según imagen) */}
+      {/* MODAL DETALLE DE PEDIDO (Optimizado Responsive) */}
       {viewingOrder && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[250] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[3.5rem] w-full max-w-2xl shadow-[0_32px_120px_-20px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 border border-slate-100">
+          <div className="bg-white rounded-[2rem] md:rounded-[3.5rem] w-full max-w-2xl shadow-[0_32px_120px_-20px_rgba(0,0,0,0.5)] overflow-hidden animate-in zoom-in-95 border border-slate-100 max-h-[92vh] flex flex-col">
             
-            {/* Cabecera Oscura */}
-            <div className="bg-[#0f172a] p-10 flex items-center justify-between relative">
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-[#10b981] rounded-2xl flex items-center justify-center text-white font-semibold text-2xl shadow-lg">
+            <div className="bg-[#0f172a] p-6 md:p-10 flex items-center justify-between relative shrink-0">
+              <div className="flex items-center gap-4 md:gap-6">
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-[#10b981] rounded-xl md:rounded-2xl flex items-center justify-center text-white font-bold text-xl md:text-2xl shadow-lg">
                   #{viewingOrder.id}
                 </div>
-                <div>
-                  <h3 className="text-3xl font-semibold text-white tracking-tight">{viewingOrder.customerName}</h3>
+                <div className="min-w-0">
+                  <h3 className="text-xl md:text-3xl font-bold text-white tracking-tight truncate">{viewingOrder.customerName}</h3>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-                    <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-[0.2em]">{viewingOrder.status}</span>
+                    <span className="text-[10px] font-bold text-blue-400 uppercase tracking-widest">{viewingOrder.status}</span>
                   </div>
                 </div>
               </div>
               <button onClick={() => setViewingOrder(null)} className="p-2 text-white/50 hover:text-white transition-colors">
-                <X size={32}/>
+                <X size={28}/>
               </button>
             </div>
 
-            <div className="p-10 space-y-10">
-              
-              {/* Grid: Contacto y Recogida */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Contacto */}
-                <div className="bg-[#f8fafc] p-8 rounded-[2.5rem] border border-slate-100 flex flex-col justify-center">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-4">Contacto</p>
-                  <div className="flex items-center gap-3 text-slate-800 font-semibold text-xl mb-4">
+            <div className="p-6 md:p-10 space-y-8 overflow-y-auto custom-scroll flex-1">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                <div className="bg-[#f8fafc] p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-slate-100 flex flex-col justify-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Contacto</p>
+                  <div className="flex items-center gap-3 text-slate-800 font-bold text-lg md:text-xl mb-3">
                     <Phone size={20} className="text-emerald-500" /> {viewingOrder.customerPhone}
                   </div>
                   <a 
                     href={`https://wa.me/34${viewingOrder.customerPhone.replace(/\D/g, '')}`} 
                     target="_blank" 
                     rel="noopener noreferrer"
-                    className="flex items-center gap-2 text-emerald-500 font-semibold text-[10px] uppercase tracking-widest hover:underline w-fit"
+                    className="flex items-center gap-2 text-emerald-500 font-bold text-[10px] uppercase tracking-widest hover:underline w-fit"
                   >
-                    <MessageCircle size={16}/> Contactar por WhatsApp
+                    <MessageCircle size={16}/> WhatsApp
                   </a>
                 </div>
 
-                {/* Recogida Programada */}
-                <div className="bg-[#f8fafc] p-8 rounded-[2.5rem] border border-slate-100 flex flex-col justify-center">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-4">Recogida Programada</p>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 text-slate-800 font-semibold text-xl">
+                <div className="bg-[#f8fafc] p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-slate-100 flex flex-col justify-center">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Recogida</p>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center gap-3 text-slate-800 font-bold text-lg md:text-xl">
                       <CalendarIcon size={20} className="text-indigo-500" /> {viewingOrder.pickupDate}
                     </div>
-                    <div className="flex items-center gap-3 text-slate-800 font-semibold text-xl">
+                    <div className="flex items-center gap-3 text-slate-800 font-bold text-lg md:text-xl">
                       <Clock size={20} className="text-indigo-500" /> {viewingOrder.pickupTime} h
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Desglose de Productos */}
               <div>
-                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] mb-6 ml-1">Desglose de Productos</p>
-                <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scroll">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4 ml-1">Productos del Pedido</p>
+                <div className="space-y-3">
                   {viewingOrder.products.map((p, idx) => (
-                    <div key={idx} className="p-6 bg-white border border-slate-100 rounded-[2rem] flex items-center justify-between shadow-sm hover:shadow-md transition-shadow">
+                    <div key={idx} className="p-5 md:p-6 bg-white border border-slate-100 rounded-[1.5rem] md:rounded-[2rem] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-sm">
                       <div className="flex-1">
-                        <h4 className="text-xl font-semibold text-slate-800">{p.type}</h4>
-                        <div className="flex flex-wrap gap-2 mt-3">
-                          <span className="px-3 py-1 bg-slate-50 text-[10px] font-medium text-slate-500 rounded-lg border border-slate-100">{p.edge}</span>
-                          <span className="px-3 py-1 bg-slate-50 text-[10px] font-medium text-slate-500 rounded-lg border border-slate-100">{p.filling}</span>
+                        <h4 className="text-lg md:text-xl font-bold text-slate-800 leading-tight">{p.type}</h4>
+                        <div className="flex flex-wrap gap-1.5 mt-2">
+                          <span className="px-2.5 py-1 bg-slate-50 text-[9px] font-bold text-slate-500 rounded-lg border border-slate-100 uppercase">{p.edge}</span>
+                          <span className="px-2.5 py-1 bg-slate-50 text-[9px] font-bold text-slate-500 rounded-lg border border-slate-100 uppercase">{p.filling}</span>
                           {p.glutenFree && (
-                            <span className="px-3 py-1 bg-amber-50 text-[10px] font-semibold text-amber-600 rounded-lg border border-amber-100">SIN GLUTEN</span>
+                            <span className="px-2.5 py-1 bg-amber-50 text-[9px] font-bold text-amber-600 rounded-lg border border-amber-100">SIN GLUTEN</span>
                           )}
                         </div>
-                        {p.message && (
-                          <p className="mt-3 text-xs italic text-slate-400 font-medium">"{p.message}"</p>
-                        )}
                       </div>
-                      <div className="px-5 py-2.5 bg-emerald-50 text-emerald-600 rounded-2xl text-[10px] font-semibold uppercase tracking-widest border border-emerald-100 shadow-sm shrink-0 ml-4">
+                      <div className="px-4 py-2 bg-emerald-50 text-emerald-600 rounded-xl text-[10px] font-bold uppercase tracking-widest border border-emerald-100 shrink-0">
                         {p.portions} Raciones
                       </div>
                     </div>
@@ -430,26 +422,25 @@ const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Botones de Acción */}
-              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <div className="flex flex-col sm:flex-row gap-3 pt-4 shrink-0">
                 <button 
                   onClick={() => handlePrintOrder(viewingOrder)} 
-                  className="flex-1 py-5 bg-[#0f172a] text-white font-semibold rounded-2xl flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all text-lg"
+                  className="flex-1 py-4 md:py-5 bg-[#0f172a] text-white font-bold rounded-2xl flex items-center justify-center gap-3 shadow-xl active:scale-95 transition-all text-sm md:text-lg"
                 >
-                  <Printer size={24}/> Imprimir Ticket
+                  <Printer size={20}/> Imprimir
                 </button>
                 <button 
                   onClick={() => {
                     handleEditRequest(viewingOrder);
                     setViewingOrder(null);
                   }} 
-                  className="flex-1 py-5 bg-white border-2 border-slate-100 text-slate-700 font-semibold rounded-2xl flex items-center justify-center gap-3 shadow-sm hover:bg-slate-50 hover:border-slate-200 active:scale-95 transition-all text-lg"
+                  className="flex-1 py-4 md:py-5 bg-white border-2 border-slate-100 text-slate-700 font-bold rounded-2xl flex items-center justify-center gap-3 shadow-sm active:scale-95 transition-all text-sm md:text-lg"
                 >
-                  <Edit3 size={24}/> Editar Datos
+                  <Edit3 size={20}/> Editar
                 </button>
                 <button 
                   onClick={() => setViewingOrder(null)} 
-                  className="px-10 py-5 bg-[#f1f5f9] text-[#64748b] font-semibold rounded-2xl hover:bg-slate-200 transition-all text-lg"
+                  className="sm:px-8 py-4 md:py-5 bg-[#f1f5f9] text-[#64748b] font-bold rounded-2xl active:scale-95 transition-all text-sm md:text-lg"
                 >
                   Cerrar
                 </button>
@@ -461,16 +452,16 @@ const App: React.FC = () => {
 
       {securityModal.isOpen && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[350] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 text-center animate-in zoom-in-95">
-            <div className="w-20 h-20 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6"><ShieldAlert size={40}/></div>
-            <h3 className="text-2xl font-semibold text-slate-900 mb-2">Confirmar Eliminación</h3>
-            <p className="text-slate-500 mb-8">Vas a eliminar {securityModal.ids.length} pedido(s).</p>
+          <div className="bg-white rounded-[2rem] w-full max-w-md p-8 md:p-10 text-center animate-in zoom-in-95">
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-rose-100 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-6"><ShieldAlert size={32}/></div>
+            <h3 className="text-xl md:text-2xl font-bold text-slate-900 mb-2">Confirmar Eliminación</h3>
+            <p className="text-sm text-slate-500 mb-8">Vas a eliminar {securityModal.ids.length} registro(s).</p>
             {securityModal.requiresPassword && (
-              <input type="password" value={adminPassInput} onChange={e => setAdminPassInput(e.target.value)} className="w-full px-5 py-4 bg-slate-50 border rounded-2xl mb-4 font-medium" placeholder="PIN Admin" />
+              <input type="password" value={adminPassInput} onChange={e => setAdminPassInput(e.target.value)} className="w-full px-5 py-4 bg-slate-50 border rounded-2xl mb-4 font-bold text-center tracking-widest" placeholder="PIN Admin" />
             )}
-            <div className="flex gap-4">
-              <button onClick={confirmDeletion} className="flex-1 py-4 bg-rose-500 text-white font-semibold rounded-2xl">Eliminar</button>
-              <button onClick={() => setSecurityModal({isOpen: false, ids: [], requiresPassword: false})} className="flex-1 py-4 bg-slate-100 font-medium rounded-2xl">Cancelar</button>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button onClick={confirmDeletion} className="flex-1 py-4 bg-rose-500 text-white font-bold rounded-2xl active:scale-95 transition-transform">Eliminar</button>
+              <button onClick={() => setSecurityModal({isOpen: false, ids: [], requiresPassword: false})} className="flex-1 py-4 bg-slate-100 text-slate-600 font-bold rounded-2xl active:scale-95 transition-transform">Cancelar</button>
             </div>
           </div>
         </div>

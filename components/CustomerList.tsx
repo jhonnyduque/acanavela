@@ -1,9 +1,9 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Customer, Order } from '../types';
 import { 
   Search, UserPlus, Edit3, Trash2, Phone, X, Save, 
   MessageCircle, ChevronUp, ChevronDown, Star, TrendingUp, Trophy, UserCheck, Users,
-  Download, Square, CheckSquare, AlertCircle, PlusCircle, Mail
+  Download, Square, CheckSquare, AlertCircle, Mail, Calendar
 } from 'lucide-react';
 
 interface CustomerListProps {
@@ -27,7 +27,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
   const [filterType, setFilterType] = useState<FilterType>('all');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   
-  // Estados de validación
   const [nameError, setNameError] = useState<string | null>(null);
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [emailSuggestions, setEmailSuggestions] = useState<string[]>([]);
@@ -149,9 +148,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
     document.body.removeChild(link);
   };
 
-  // VALIDACIONES PARA EL FORMULARIO
   const handleNameInput = (val: string) => {
-    // Solo permitir letras y espacios, borrar números
     const cleanVal = val.replace(/[0-9]/g, '');
     setEditingCustomer(prev => prev ? {...prev, name: cleanVal} : null);
     if (nameError) setNameError(null);
@@ -169,7 +166,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
   };
 
   const handlePhoneInput = (val: string) => {
-    // Solo números
     const cleanVal = val.replace(/\D/g, '');
     setEditingCustomer(prev => prev ? {...prev, phone: cleanVal} : null);
     if (phoneError) setPhoneError(null);
@@ -188,16 +184,11 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
 
   const handleEmailInput = (val: string) => {
     setEditingCustomer(prev => prev ? {...prev, email: val} : null);
-    
     if (val.includes('@')) {
       const parts = val.split('@');
       const userPart = parts[0];
       const domainPart = parts[1] || '';
-      
-      const filtered = COMMON_DOMAINS
-        .filter(d => d.startsWith(domainPart))
-        .map(d => `${userPart}@${d}`);
-      
+      const filtered = COMMON_DOMAINS.filter(d => d.startsWith(domainPart)).map(d => `${userPart}@${d}`);
       setEmailSuggestions(filtered);
     } else {
       setEmailSuggestions([]);
@@ -216,7 +207,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
 
   return (
     <div className="space-y-6 animate-in fade-in pb-12">
-      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
+      <div className="bg-white p-6 md:p-8 rounded-[1.5rem] md:rounded-[2.5rem] border border-slate-200 shadow-sm space-y-6">
         <div className="flex flex-col md:flex-row gap-4 items-center justify-between">
           <div className="relative flex-1 w-full max-w-md">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
@@ -228,23 +219,23 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
                 setSearchTerm(e.target.value);
                 setSelectedIds(new Set());
               }}
-              className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 font-semibold transition-all"
+              className="w-full pl-11 pr-4 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-emerald-500/10 focus:border-emerald-500 font-semibold transition-all text-sm md:text-base"
             />
           </div>
           <div className="flex flex-wrap gap-2 w-full md:w-auto">
             {selectedIds.size > 0 && (
               <button 
                 onClick={handleBulkDelete}
-                className="flex items-center gap-2 px-6 py-3.5 bg-rose-500 text-white font-semibold rounded-2xl shadow-xl shadow-rose-500/20 hover:bg-rose-600 transition-all animate-in zoom-in-95"
+                className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3.5 bg-rose-500 text-white font-semibold rounded-2xl shadow-xl shadow-rose-500/20 hover:bg-rose-600 transition-all text-xs uppercase tracking-widest"
               >
-                <Trash2 size={20}/> Eliminar ({selectedIds.size})
+                <Trash2 size={18}/> Eliminar ({selectedIds.size})
               </button>
             )}
             <button 
               onClick={handleExportCSV}
-              className="flex items-center gap-2 px-6 py-3.5 bg-indigo-600 text-white font-semibold rounded-2xl shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all"
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3.5 bg-indigo-600 text-white font-semibold rounded-2xl shadow-xl shadow-indigo-600/20 hover:bg-indigo-700 transition-all text-xs uppercase tracking-widest"
             >
-              <Download size={20}/> Exportar ({selectedIds.size || filteredAndSortedCustomers.length})
+              <Download size={18}/> Exportar
             </button>
             <button 
               onClick={() => {
@@ -252,19 +243,19 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
                 setPhoneError(null);
                 setEditingCustomer({ name: '', phone: '', email: '', createdAt: new Date().toISOString() });
               }}
-              className="flex items-center gap-2 px-8 py-3.5 bg-emerald-500 text-white font-semibold rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 transition-all"
+              className="w-full md:w-auto flex items-center justify-center gap-2 px-8 py-3.5 bg-emerald-500 text-white font-semibold rounded-2xl shadow-xl shadow-emerald-500/20 hover:bg-emerald-600 transition-all text-xs uppercase tracking-widest"
             >
-              <UserPlus size={20}/> Nuevo Cliente
+              <UserPlus size={18}/> Nuevo Cliente
             </button>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-50">
+        <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-50 overflow-x-auto no-scrollbar pb-2 md:pb-0">
           {[
             { id: 'all', label: 'Todos', icon: Users },
-            { id: 'frequent', label: 'Frecuentes (+8)', icon: Trophy },
-            { id: 'recurring', label: 'Recurrentes (2-7)', icon: TrendingUp },
-            { id: 'new', label: 'Nuevos / 1 pedido', icon: Star }
+            { id: 'frequent', label: 'Frecuentes', icon: Trophy },
+            { id: 'recurring', label: 'Recurrentes', icon: TrendingUp },
+            { id: 'new', label: 'Nuevos', icon: Star }
           ].map((btn) => (
             <button
               key={btn.id}
@@ -272,7 +263,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
                 setFilterType(btn.id as FilterType);
                 setSelectedIds(new Set());
               }}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-[11px] font-semibold uppercase tracking-widest transition-all ${
+              className={`whitespace-nowrap flex items-center gap-2 px-5 py-2.5 rounded-xl text-[10px] md:text-[11px] font-semibold uppercase tracking-widest transition-all ${
                 filterType === btn.id ? 'bg-slate-900 text-white shadow-lg' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
               }`}
             >
@@ -282,7 +273,8 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
         </div>
       </div>
 
-      <div className="bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
+      {/* VISTA DESKTOP (TABLA) */}
+      <div className="hidden md:block bg-white rounded-[2.5rem] border border-slate-200 overflow-hidden shadow-sm">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -356,6 +348,61 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
         </div>
       </div>
 
+      {/* VISTA MÓVIL (CARDS) */}
+      <div className="md:hidden space-y-4">
+        {filteredAndSortedCustomers.map(c => {
+          const stats = customerStats[c.phone] || { count: 0, lastDate: '-' };
+          const fidelity = getFidelityBadge(stats.count);
+          const isSelected = selectedIds.has(c.id);
+
+          return (
+            <div 
+              key={c.id} 
+              className={`bg-white rounded-[2rem] p-6 border transition-all duration-300 ${isSelected ? 'border-indigo-500 ring-4 ring-indigo-500/5' : 'border-slate-200'} shadow-sm space-y-5`}
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                   <div className={`w-16 h-16 rounded-2xl flex items-center justify-center font-bold text-2xl shadow-sm ${fidelity.class}`}>
+                     {c.name.charAt(0)}
+                   </div>
+                   <div>
+                     <h4 className="font-bold text-slate-900 text-xl leading-tight">{c.name}</h4>
+                     <p className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-1">
+                       <Phone size={12} className="text-emerald-500"/> {c.phone}
+                     </p>
+                   </div>
+                </div>
+                <button onClick={() => toggleSelect(c.id)} className="p-1">
+                   {isSelected ? <CheckSquare size={28} className="text-indigo-600"/> : <Square size={28} className="text-slate-200"/>}
+                </button>
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase border ${fidelity.class}`}>
+                  <fidelity.icon size={12}/> {fidelity.label} ({stats.count})
+                </span>
+                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase bg-slate-50 text-slate-500 border border-slate-100">
+                  <Calendar size={12} className="text-indigo-400"/> Reg: {new Date(c.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button 
+                  onClick={() => window.open(`https://wa.me/34${c.phone.replace(/\D/g, '')}`, '_blank')} 
+                  className="flex-1 h-14 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 flex items-center justify-center gap-2 font-bold text-[10px] uppercase tracking-widest shadow-sm active:scale-[0.98] transition-all"
+                >
+                  <MessageCircle size={18}/> WhatsApp
+                </button>
+                <div className="flex gap-2">
+                  <button onClick={() => { setEditingCustomer(c); setNameError(null); setPhoneError(null); }} className="w-14 h-14 bg-slate-50 text-slate-400 rounded-2xl border border-slate-100 flex items-center justify-center active:scale-95 transition-transform"><Edit3 size={20}/></button>
+                  <button onClick={() => { if(confirm('¿Eliminar cliente?')) onSave(customers.filter(cust => cust.id !== c.id)) }} className="w-14 h-14 bg-rose-50 text-rose-500 rounded-2xl border border-rose-100 flex items-center justify-center active:scale-95 transition-transform"><Trash2 size={20}/></button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
       {editingCustomer && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[210] flex items-center justify-center p-4">
           <form 
@@ -369,11 +416,10 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
               }
               setEditingCustomer(null);
             }} 
-            className="bg-white rounded-[3rem] w-full max-w-xl shadow-[0_32px_80px_-12px_rgba(0,0,0,0.5)] overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300"
+            className="bg-white rounded-[2rem] md:rounded-[3rem] w-full max-w-xl shadow-[0_32px_80px_-12px_rgba(0,0,0,0.5)] overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300"
           >
-            {/* Cabecera del Modal */}
-            <div className="p-10 pb-4 flex items-center justify-between">
-              <h3 className="text-3xl font-semibold text-slate-900 tracking-tight">
+            <div className="p-6 md:p-10 pb-4 flex items-center justify-between">
+              <h3 className="text-2xl md:text-3xl font-semibold text-slate-900 tracking-tight">
                 {editingCustomer.id ? 'Ficha de Cliente' : 'Nuevo Registro'}
               </h3>
               <button type="button" onClick={() => setEditingCustomer(null)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 transition-colors">
@@ -381,8 +427,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
               </button>
             </div>
 
-            <div className="p-10 pt-6 space-y-8">
-              {/* Campo: Nombre y Apellido */}
+            <div className="p-6 md:p-10 pt-6 space-y-8">
               <div className="space-y-3">
                 <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] ml-1">
                   Nombre y Apellido
@@ -406,9 +451,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
                 </div>
               </div>
 
-              {/* Grid: Teléfono y Email */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                {/* Campo: Teléfono */}
                 <div className="space-y-3">
                   <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] ml-1">
                     Teléfono
@@ -432,7 +475,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
                   </div>
                 </div>
 
-                {/* Campo: Email */}
                 <div className="space-y-3 relative">
                   <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-[0.2em] ml-1">
                     Email
@@ -445,7 +487,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
                       onChange={e => handleEmailInput(e.target.value)} 
                       className="w-full px-6 py-5 bg-[#f8fafc] border border-slate-100 rounded-[1.5rem] outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/5 font-semibold transition-all text-slate-700 placeholder:text-slate-300" 
                     />
-                    {/* Sugerencias de Email */}
                     {emailSuggestions.length > 0 && (
                       <div className="absolute top-full left-0 right-0 z-50 bg-white border border-slate-100 rounded-2xl shadow-2xl mt-2 overflow-hidden animate-in fade-in slide-in-from-top-2">
                         {emailSuggestions.map((email, i) => (
@@ -466,8 +507,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
               </div>
             </div>
 
-            {/* Acciones del Modal */}
-            <div className="p-10 pt-4 pb-12 flex gap-4">
+            <div className="p-6 md:p-10 pt-4 pb-12 flex flex-col md:flex-row gap-4">
               <button 
                 type="submit" 
                 className="flex-[1.5] py-5 bg-[#10b981] text-white font-semibold rounded-[1.5rem] shadow-xl shadow-emerald-500/20 active:scale-95 transition-all flex items-center justify-center gap-3 text-lg"

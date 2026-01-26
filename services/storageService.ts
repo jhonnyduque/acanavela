@@ -1,94 +1,119 @@
+// services/storageService.ts
+import { supabase } from './supabaseClient';
+import { Order, Customer } from '../types';
 
-import { Order, Customer, AppUser, AuditLogEntry } from '../types';
-
-const STORAGE_KEY = 'acanavela_orders_v2';
-const CUSTOMERS_KEY = 'acanavela_customers_v1';
-const USERS_KEY = 'acanavela_users_v1';
-const LOGS_KEY = 'acanavela_user_logs_v1';
-const BACKUP_KEY = 'acanavela_backup_v2';
-
-const DEFAULT_USERS: AppUser[] = [
-  {
-    id: '1',
-    name: 'Administrador Principal',
-    username: 'admin',
-    role: 'ADMIN',
-    isActive: true,
-    pin: '1234'
-  },
-  {
-    id: '2',
-    name: 'Yaliana Belandria',
-    username: 'yaliana',
-    role: 'MANAGER',
-    isActive: true,
-    pin: '1234'
-  },
-  {
-    id: '3',
-    name: 'Isabella Duque',
-    username: 'isabella',
-    role: 'VENDOR',
-    isActive: true,
-    pin: '1234'
-  }
-];
+const ORDERS_TABLE = 'orders';
+const CUSTOMERS_TABLE = 'customers';
 
 export const storageService = {
-  getOrders: (): Order[] => {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+  /* =======================
+     PEDIDOS (SUPABASE)
+  ======================= */
+
+  async getOrders(): Promise<Order[]> {
+    const { data, error } = await supabase
+      .from(ORDERS_TABLE)
+      .select('*')
+      .order('id', { ascending: true });
+
+    if (error) {
+      console.error('getOrders error:', error);
+      throw error;
+    }
+
+    // 🔁 mapear Supabase → modelo de la app
+    return (data ?? []).map((row: any) => ({
+      id: row.id,
+      customerName: row.customer_name,
+      customerPhone: row.customer_phone,
+      pickupDate: row.pickup_date,
+      pickupTime: row.pickup_time,
+      status: row.status,
+      products: [] // ⚠️ por ahora vacío (va en order_products)
+    })) as Order[];
   },
 
-  saveOrders: (orders: Order[]) => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(orders));
-    const customers = storageService.getCustomers();
-    localStorage.setItem(BACKUP_KEY, JSON.stringify({
-      orders,
-      customers,
-      timestamp: new Date().toISOString()
+  async saveOrders(orders: Order[]) {
+    // 1️⃣ borrar todo (estrategia actual)
+    const { error: deleteError } = await supabase
+      .from(ORDERS_TABLE)
+      .delete()
+      .neq('id', 0);
+
+    if (deleteError) {
+      console.error('deleteOrders error:', deleteError);
+      throw deleteError;
+    }
+
+    // 2️⃣ mapear modelo app → columnas Supabase
+    const rows = orders.map(o => ({
+      id: o.id,
+      customer_name: o.customerName,
+      customer_phone: o.customerPhone,
+      pickup_date: o.pickupDate, // YYYY-MM-DD
+      pickup_time: o.pickupTime, // HH:mm
+      status: o.status
     }));
+
+    const { error: insertError } = await supabase
+      .from(ORDERS_TABLE)
+      .insert(rows);
+
+    if (insertError) {
+      console.error('insertOrders error:', insertError);
+      throw insertError;
+    }
   },
 
-  getCustomers: (): Customer[] => {
-    const data = localStorage.getItem(CUSTOMERS_KEY);
-    return data ? JSON.parse(data) : [];
+  /* =======================
+     CLIENTES (SUPABASE)
+  ======================= */
+
+  async getCustomers(): Promise<Customer[]> {
+    const { data, error } = await supabase
+      .from(CUSTOMERS_TABLE)
+      .select('*')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('getCustomers error:', error);
+      throw error;
+    }
+
+    return (data ?? []).map((row: any) => ({
+      id: row.id,
+      name: row.name,
+      phone: row.phone,
+      createdAt: row.created_at
+    })) as Customer[];
   },
 
-  saveCustomers: (customers: Customer[]) => {
-    localStorage.setItem(CUSTOMERS_KEY, JSON.stringify(customers));
-  },
+  async saveCustomers(customers: Customer[]) {
+    const { error: deleteError } = await supabase
+      .from(CUSTOMERS_TABLE)
+      .delete()
+      .neq('id', '');
 
-  getUsers: (): AppUser[] => {
-    const data = localStorage.getItem(USERS_KEY);
-    return data ? JSON.parse(data) : DEFAULT_USERS;
-  },
+    if (deleteError) {
+      console.error('deleteCustomers error:', deleteError);
+      throw deleteError;
+    }
 
-  saveUsers: (users: AppUser[]) => {
-    localStorage.setItem(USERS_KEY, JSON.stringify(users));
-  },
+    const rows = customers.map(c => ({
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      created_at: c.createdAt
+    }));
 
-  getLogs: (): AuditLogEntry[] => {
-    const data = localStorage.getItem(LOGS_KEY);
-    return data ? JSON.parse(data) : [];
-  },
+    const { error: insertError } = await supabase
+      .from(CUSTOMERS_TABLE)
+      .insert(rows);
 
-  saveLogs: (logs: AuditLogEntry[]) => {
-    localStorage.setItem(LOGS_KEY, JSON.stringify(logs.slice(-50)));
-  },
-
-  addLog: (log: Omit<AuditLogEntry, 'id' | 'timestamp'>) => {
-    const logs = storageService.getLogs();
-    const newLog: AuditLogEntry = {
-      ...log,
-      id: Math.random().toString(36).substr(2, 9),
-      timestamp: new Date().toISOString()
-    };
-    storageService.saveLogs([newLog, ...logs]);
-  },
-
-  getBackupInfo: () => {
-    const data = localStorage.getItem(BACKUP_KEY);
-    return data ? JSON.parse(data) : null;
+    if (insertError) {
+      console.error('insertCustomers error:', insertError);
+      throw insertError;
+    }
   }
 };
+

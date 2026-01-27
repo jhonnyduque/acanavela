@@ -1,9 +1,10 @@
+
 import React, { useState, useMemo } from 'react';
 import { Customer, Order } from '../types';
 import { 
   Search, UserPlus, Edit3, Trash2, Phone, X, Save, 
   MessageCircle, ChevronUp, ChevronDown, Star, TrendingUp, Trophy, UserCheck, Users,
-  Download, Square, CheckSquare, AlertCircle, Mail, Calendar
+  Download, Square, CheckSquare, AlertCircle, Mail, Calendar, UserMinus
 } from 'lucide-react';
 
 interface CustomerListProps {
@@ -15,7 +16,7 @@ interface CustomerListProps {
 
 type SortField = 'name' | 'orderCount' | 'createdAt';
 type SortOrder = 'asc' | 'desc';
-type FilterType = 'all' | 'new' | 'recurring' | 'frequent';
+type FilterType = 'all' | 'new' | 'recurring' | 'frequent' | 'occasional';
 
 const COMMON_DOMAINS = ['gmail.com', 'hotmail.com', 'outlook.es', 'icloud.com', 'yahoo.es', 'outlook.com', 'live.com'];
 
@@ -56,10 +57,10 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
   };
 
   const getFidelityBadge = (count: number) => {
-    if (count >= 8) return { label: 'Frecuente', class: 'bg-emerald-50 text-emerald-600 border-emerald-100', icon: Trophy };
-    if (count >= 2) return { label: 'Recurrente', class: 'bg-indigo-50 text-indigo-600 border-indigo-100', icon: TrendingUp };
-    if (count === 1) return { label: 'Nuevo', class: 'bg-amber-50 text-amber-600 border-amber-100', icon: Star };
-    return { label: 'Ocasional', class: 'bg-slate-50 text-slate-500 border-slate-100', icon: UserCheck };
+    if (count >= 8) return { label: 'Frecuente (+8)', class: 'bg-emerald-50 text-emerald-600 border-emerald-100', icon: Trophy };
+    if (count >= 2) return { label: 'Recurrente (2-7)', class: 'bg-indigo-50 text-indigo-600 border-indigo-100', icon: TrendingUp };
+    if (count === 1) return { label: 'Nuevo (1)', class: 'bg-amber-50 text-amber-600 border-amber-100', icon: Star };
+    return { label: 'Ocasional (0)', class: 'bg-slate-50 text-slate-500 border-slate-100', icon: UserMinus };
   };
 
   const filteredAndSortedCustomers = useMemo(() => {
@@ -74,6 +75,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
         if (filterType === 'new') return count === 1;
         if (filterType === 'recurring') return count >= 2 && count < 8;
         if (filterType === 'frequent') return count >= 8;
+        if (filterType === 'occasional') return count === 0;
         return true;
       });
     }
@@ -253,9 +255,10 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
         <div className="flex flex-wrap gap-2 pt-2 border-t border-slate-50 overflow-x-auto no-scrollbar pb-2 md:pb-0">
           {[
             { id: 'all', label: 'Todos', icon: Users },
-            { id: 'frequent', label: 'Frecuentes', icon: Trophy },
-            { id: 'recurring', label: 'Recurrentes', icon: TrendingUp },
-            { id: 'new', label: 'Nuevos', icon: Star }
+            { id: 'frequent', label: 'Frecuentes (+8)', icon: Trophy },
+            { id: 'recurring', label: 'Recurrentes (2-7)', icon: TrendingUp },
+            { id: 'new', label: 'Nuevos (1)', icon: Star },
+            { id: 'occasional', label: 'Ocasionales (0)', icon: UserMinus }
           ].map((btn) => (
             <button
               key={btn.id}

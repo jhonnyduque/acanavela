@@ -1,119 +1,247 @@
-// services/storageService.ts
 import { supabase } from './supabaseClient';
-import { Order, Customer } from '../types';
-
-const ORDERS_TABLE = 'orders';
-const CUSTOMERS_TABLE = 'customers';
+import { Order, Customer, AppUser, AuditLogEntry, CatalogItem, SortPrefs } from '../types';
 
 export const storageService = {
-  /* =======================
-     PEDIDOS (SUPABASE)
-  ======================= */
-
-  async getOrders(): Promise<Order[]> {
-    const { data, error } = await supabase
-      .from(ORDERS_TABLE)
-      .select('*')
-      .order('id', { ascending: true });
-
-    if (error) {
-      console.error('getOrders error:', error);
-      throw error;
+  // --- ÓRDENES (Pedidos) ---
+  getOrders: async (): Promise<Order[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('pickup_date', { ascending: true })
+        .order('pickup_time', { ascending: true });
+      
+      if (error) throw error;
+      return (data || []).map(o => ({
+        id: o.id,
+        customerName: o.customer_name,
+        customerPhone: o.customer_phone,
+        pickupDate: o.pickup_date,
+        pickupTime: o.pickup_time,
+        status: o.status,
+        products: o.products,
+        createdAt: o.created_at
+      }));
+    } catch (e) {
+      console.error("Storage Error (Orders):", e);
+      return [];
     }
-
-    // 🔁 mapear Supabase → modelo de la app
-    return (data ?? []).map((row: any) => ({
-      id: row.id,
-      customerName: row.customer_name,
-      customerPhone: row.customer_phone,
-      pickupDate: row.pickup_date,
-      pickupTime: row.pickup_time,
-      status: row.status,
-      products: [] // ⚠️ por ahora vacío (va en order_products)
-    })) as Order[];
   },
 
-  async saveOrders(orders: Order[]) {
-    // 1️⃣ borrar todo (estrategia actual)
-    const { error: deleteError } = await supabase
-      .from(ORDERS_TABLE)
-      .delete()
-      .neq('id', 0);
+  saveOrder: async (order: Order): Promise<Order> => {
+    const payload = {
+      customer_name: order.customerName,
+      customer_phone: order.customerPhone,
+      pickup_date: order.pickupDate,
+      pickup_time: order.pickupTime,
+      status: order.status,
+      products: order.products
+    };
 
-    if (deleteError) {
-      console.error('deleteOrders error:', deleteError);
-      throw deleteError;
+    let result;
+    if (order.id && order.id > 0) {
+      const { data, error } = await supabase
+        .from('orders')
+        .update(payload)
+        .eq('id', order.id)
+        .select()
+        .single();
+      if (error) throw error;
+      result = data;
+    } else {
+      const { data, error } = await supabase
+        .from('orders')
+        .insert([payload])
+        .select()
+        .single();
+      if (error) throw error;
+      result = data;
     }
 
-    // 2️⃣ mapear modelo app → columnas Supabase
-    const rows = orders.map(o => ({
-      id: o.id,
-      customer_name: o.customerName,
-      customer_phone: o.customerPhone,
-      pickup_date: o.pickupDate, // YYYY-MM-DD
-      pickup_time: o.pickupTime, // HH:mm
-      status: o.status
+    return {
+      id: result.id,
+      customerName: result.customer_name,
+      customerPhone: result.customer_phone,
+      pickupDate: result.pickup_date,
+      pickupTime: result.pickup_time,
+      status: result.status,
+      products: result.products,
+      createdAt: result.created_at
+    };
+  },
+
+  deleteOrders: async (ids: number[]): Promise<void> => {
+    const { error } = await supabase.from('orders').delete().in('id', ids);
+    if (error) throw error;
+  },
+
+  updateOrderStatus: async (id: number, status: string): Promise<void> => {
+    const { error } = await supabase.from('orders').update({ status }).eq('id', id);
+    if (error) throw error;
+  },
+
+  // --- CLIENTES ---
+  getCustomers: async (): Promise<Customer[]> => {
+    try {
+      const { data, error } = await supabase.from('customers').select('*').order('name');
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      return [];
+    }
+  },
+
+  saveCustomer: async (customer: Customer): Promise<void> => {
+    const { error } = await supabase.from('customers').upsert({
+      id: customer.id,
+      name: customer.name,
+      phone: customer.phone,
+      email: customer.email,
+      created_at: customer.createdAt
+    });
+    if (error) throw error;
+  },
+
+  // --- EQUIPO (Usuarios) ---
+  getUsers: async (): Promise<AppUser[]> => {
+    try {
+      const { data, error } = await supabase.from('app_users').select('*');
+      if (error) throw error;
+      return (data || []).map(u => ({
+        id: u.id,
+        name: u.name,
+        username: u.username,
+        pin: u.pin,
+        role: u.role,
+        isActive: u.is_active ?? true
+      }));
+    } catch (e) {
+      console.warn("Error fetching users:", e);
+      return [];
+    }
+  },
+
+  saveUser: async (user: AppUser): Promise<void> => {
+    const payload: any = {
+      name: user.name,
+      username: user.username,
+      pin: user.pin,
+      role: user.role,
+      is_active: user.isActive
+    };
+
+    // Si el ID es un UUID válido (contiene guiones), actualizamos
+    if (user.id && user.id.includes('-')) {
+      const { error } = await supabase
+        .from('app_users')
+        .update(payload)
+        .eq('id', user.id);
+      if (error) {
+        console.error("Error updating user:", error);
+        throw error;
+      }
+    } else {
+      // Si es un usuario nuevo (o master-admin sin ID en DB), insertamos
+      // No enviamos ID para que Supabase genere el UUID por defecto
+      const { error } = await supabase
+        .from('app_users')
+        .insert([payload]);
+      if (error) {
+        console.error("Error inserting user:", error);
+        throw error;
+      }
+    }
+  },
+
+  // --- CATÁLOGOS GLOBALES ---
+  getCatalog: async (table: 'catalog_products' | 'catalog_edges' | 'catalog_fillings'): Promise<CatalogItem[]> => {
+    try {
+      const { data, error } = await supabase
+        .from(table)
+        .select('*')
+        .order('order_index', { ascending: true });
+      
+      if (error) throw error;
+      return (data || []).map(i => ({
+        id: i.id,
+        name: i.name,
+        isActive: i.is_active,
+        createdAt: i.created_at,
+        orderIndex: i.order_index
+      }));
+    } catch (e) {
+      console.error(`Error loading ${table}:`, e);
+      return [];
+    }
+  },
+
+  getProductsCatalog: () => storageService.getCatalog('catalog_products'),
+  getEdgesCatalog: () => storageService.getCatalog('catalog_edges'),
+  getFillingsCatalog: () => storageService.getCatalog('catalog_fillings'),
+
+  saveCatalogList: async (table: 'catalog_products' | 'catalog_edges' | 'catalog_fillings', items: CatalogItem[]): Promise<void> => {
+    const payload = items.map(i => ({
+      id: i.id,
+      name: i.name,
+      is_active: i.isActive,
+      order_index: i.orderIndex
     }));
+    const { error } = await supabase.from(table).upsert(payload);
+    if (error) throw error;
+  },
 
-    const { error: insertError } = await supabase
-      .from(ORDERS_TABLE)
-      .insert(rows);
+  saveProductsCatalog: (items: CatalogItem[]) => storageService.saveCatalogList('catalog_products', items),
+  saveEdgesCatalog: (items: CatalogItem[]) => storageService.saveCatalogList('catalog_edges', items),
+  saveFillingsCatalog: (items: CatalogItem[]) => storageService.saveCatalogList('catalog_fillings', items),
 
-    if (insertError) {
-      console.error('insertOrders error:', insertError);
-      throw insertError;
+  // --- LOGS Y PREFERENCIAS ---
+  getLogs: async (): Promise<AuditLogEntry[]> => {
+    try {
+      const { data, error } = await supabase.from('audit_log').select('*').order('timestamp', { ascending: false });
+      if (error) return [];
+      return (data || []).map(l => ({
+        id: l.id,
+        action: l.action,
+        performedBy: l.performed_by,
+        targetUser: l.target_user,
+        timestamp: l.timestamp
+      }));
+    } catch (e) {
+      return [];
     }
   },
 
-  /* =======================
-     CLIENTES (SUPABASE)
-  ======================= */
-
-  async getCustomers(): Promise<Customer[]> {
-    const { data, error } = await supabase
-      .from(CUSTOMERS_TABLE)
-      .select('*')
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('getCustomers error:', error);
-      throw error;
-    }
-
-    return (data ?? []).map((row: any) => ({
-      id: row.id,
-      name: row.name,
-      phone: row.phone,
-      createdAt: row.created_at
-    })) as Customer[];
+  addLog: async (log: Omit<AuditLogEntry, 'id' | 'timestamp'>) => {
+    try {
+      await supabase.from('audit_log').insert([{
+        action: log.action,
+        performed_by: log.performedBy,
+        target_user: log.targetUser
+      }]);
+    } catch (e) {}
   },
 
-  async saveCustomers(customers: Customer[]) {
-    const { error: deleteError } = await supabase
-      .from(CUSTOMERS_TABLE)
-      .delete()
-      .neq('id', '');
-
-    if (deleteError) {
-      console.error('deleteCustomers error:', deleteError);
-      throw deleteError;
+  getSortPrefs: async (): Promise<SortPrefs> => {
+    try {
+      const { data, error } = await supabase
+        .from('app_preferences')
+        .select('data')
+        .eq('key', 'sort_preferences')
+        .single();
+      
+      if (error) return { products: 'manual', edges: 'manual', fillings: 'manual' };
+      return data.data as SortPrefs;
+    } catch (e) {
+      return { products: 'manual', edges: 'manual', fillings: 'manual' };
     }
+  },
 
-    const rows = customers.map(c => ({
-      id: c.id,
-      name: c.name,
-      phone: c.phone,
-      created_at: c.createdAt
-    }));
-
-    const { error: insertError } = await supabase
-      .from(CUSTOMERS_TABLE)
-      .insert(rows);
-
-    if (insertError) {
-      console.error('insertCustomers error:', insertError);
-      throw insertError;
-    }
+  saveSortPrefs: async (prefs: SortPrefs): Promise<void> => {
+    try {
+      await supabase.from('app_preferences').upsert({
+        key: 'sort_preferences',
+        data: prefs
+      });
+    } catch (e) {}
   }
 };
-

@@ -8,70 +8,6 @@ import {
   SortPrefs,
 } from '../types';
 
-type OrderRow = {
-  id: number;
-  customer_name: string;
-  customer_phone: string;
-  pickup_date: string;
-  pickup_time: string;
-  status: string;
-  products: Order['products'];
-  created_at: string;
-};
-
-type CustomerRow = {
-  id: number | string;
-  name: string;
-  phone: string;
-  email?: string | null;
-  created_at?: string | null;
-};
-
-type AppUserRow = {
-  id: string;
-  name: string;
-  username: string;
-  pin: string;
-  role: AppUser['role'];
-  is_active: boolean | null;
-};
-
-type CatalogRow = {
-  id: number | string;
-  name: string;
-  is_active: boolean;
-  created_at?: string | null;
-  order_index?: number | null;
-};
-
-type AuditLogRow = {
-  id: number | string;
-  action: string;
-  performed_by: string;
-  target_user?: string | null;
-  timestamp: string;
-};
-
-type SortPrefsRow = {
-  data: SortPrefs;
-};
-
-type AppUserPayload = {
-  name: string;
-  username: string;
-  pin: string;
-  role: AppUser['role'];
-  is_active: boolean;
-};
-
-type CatalogTable = 'catalog_products' | 'catalog_edges' | 'catalog_fillings';
-
-const DEFAULT_SORT_PREFS: SortPrefs = {
-  products: 'manual',
-  edges: 'manual',
-  fillings: 'manual',
-};
-
 export const storageService = {
   // --- ÓRDENES (Pedidos) ---
   getOrders: async (): Promise<Order[]> => {
@@ -84,15 +20,13 @@ export const storageService = {
 
       if (error) throw error;
 
-      const rows = (data ?? []) as OrderRow[];
-
-      return rows.map((o: OrderRow): Order => ({
+      return (data || []).map((o: any) => ({
         id: o.id,
         customerName: o.customer_name,
         customerPhone: o.customer_phone,
         pickupDate: o.pickup_date,
         pickupTime: o.pickup_time,
-        status: o.status,
+        status: o.status as Order['status'],
         products: o.products,
         createdAt: o.created_at,
       }));
@@ -112,7 +46,7 @@ export const storageService = {
       products: order.products,
     };
 
-    let result: OrderRow;
+    let result: any;
 
     if (order.id && order.id > 0) {
       const { data, error } = await supabase
@@ -123,7 +57,7 @@ export const storageService = {
         .single();
 
       if (error) throw error;
-      result = data as OrderRow;
+      result = data;
     } else {
       const { data, error } = await supabase
         .from('orders')
@@ -132,7 +66,7 @@ export const storageService = {
         .single();
 
       if (error) throw error;
-      result = data as OrderRow;
+      result = data;
     }
 
     return {
@@ -141,7 +75,7 @@ export const storageService = {
       customerPhone: result.customer_phone,
       pickupDate: result.pickup_date,
       pickupTime: result.pickup_time,
-      status: result.status,
+      status: result.status as Order['status'],
       products: result.products,
       createdAt: result.created_at,
     };
@@ -152,27 +86,17 @@ export const storageService = {
     if (error) throw error;
   },
 
-  updateOrderStatus: async (id: number, status: string): Promise<void> => {
-    const { error } = await supabase
-      .from('orders')
-      .update({ status })
-      .eq('id', id);
-
+  updateOrderStatus: async (id: number, status: Order['status']): Promise<void> => {
+    const { error } = await supabase.from('orders').update({ status }).eq('id', id);
     if (error) throw error;
   },
 
   // --- CLIENTES ---
   getCustomers: async (): Promise<Customer[]> => {
     try {
-      const { data, error } = await supabase
-        .from('customers')
-        .select('*')
-        .order('name');
-
+      const { data, error } = await supabase.from('customers').select('*').order('name');
       if (error) throw error;
-
-      const rows = (data ?? []) as CustomerRow[];
-      return rows as Customer[];
+      return (data || []) as Customer[];
     } catch (e) {
       console.error('Error fetching customers:', e);
       return [];
@@ -187,7 +111,6 @@ export const storageService = {
       email: customer.email,
       created_at: customer.createdAt,
     });
-
     if (error) throw error;
   },
 
@@ -195,12 +118,9 @@ export const storageService = {
   getUsers: async (): Promise<AppUser[]> => {
     try {
       const { data, error } = await supabase.from('app_users').select('*');
-
       if (error) throw error;
 
-      const rows = (data ?? []) as AppUserRow[];
-
-      return rows.map((u: AppUserRow): AppUser => ({
+      return (data || []).map((u: any) => ({
         id: u.id,
         name: u.name,
         username: u.username,
@@ -215,7 +135,7 @@ export const storageService = {
   },
 
   saveUser: async (user: AppUser): Promise<void> => {
-    const payload: AppUserPayload = {
+    const payload = {
       name: user.name,
       username: user.username,
       pin: user.pin,
@@ -234,7 +154,9 @@ export const storageService = {
         throw error;
       }
     } else {
-      const { error } = await supabase.from('app_users').insert([payload]);
+      const { error } = await supabase
+        .from('app_users')
+        .insert([payload]);
 
       if (error) {
         console.error('Error inserting user:', error);
@@ -244,7 +166,9 @@ export const storageService = {
   },
 
   // --- CATÁLOGOS GLOBALES ---
-  getCatalog: async (table: CatalogTable): Promise<CatalogItem[]> => {
+  getCatalog: async (
+    table: 'catalog_products' | 'catalog_edges' | 'catalog_fillings'
+  ): Promise<CatalogItem[]> => {
     try {
       const { data, error } = await supabase
         .from(table)
@@ -253,13 +177,11 @@ export const storageService = {
 
       if (error) throw error;
 
-      const rows = (data ?? []) as CatalogRow[];
-
-      return rows.map((i: CatalogRow): CatalogItem => ({
-        id: i.id,
+      return (data || []).map((i: any) => ({
+        id: String(i.id),
         name: i.name,
         isActive: i.is_active,
-        createdAt: i.created_at ?? undefined,
+        createdAt: i.created_at ?? '',
         orderIndex: i.order_index ?? 0,
       }));
     } catch (e) {
@@ -268,17 +190,12 @@ export const storageService = {
     }
   },
 
-  getProductsCatalog: (): Promise<CatalogItem[]> =>
-    storageService.getCatalog('catalog_products'),
-
-  getEdgesCatalog: (): Promise<CatalogItem[]> =>
-    storageService.getCatalog('catalog_edges'),
-
-  getFillingsCatalog: (): Promise<CatalogItem[]> =>
-    storageService.getCatalog('catalog_fillings'),
+  getProductsCatalog: () => storageService.getCatalog('catalog_products'),
+  getEdgesCatalog: () => storageService.getCatalog('catalog_edges'),
+  getFillingsCatalog: () => storageService.getCatalog('catalog_fillings'),
 
   saveCatalogList: async (
-    table: CatalogTable,
+    table: 'catalog_products' | 'catalog_edges' | 'catalog_fillings',
     items: CatalogItem[]
   ): Promise<void> => {
     const payload = items.map((i: CatalogItem) => ({
@@ -292,13 +209,13 @@ export const storageService = {
     if (error) throw error;
   },
 
-  saveProductsCatalog: (items: CatalogItem[]): Promise<void> =>
+  saveProductsCatalog: (items: CatalogItem[]) =>
     storageService.saveCatalogList('catalog_products', items),
 
-  saveEdgesCatalog: (items: CatalogItem[]): Promise<void> =>
+  saveEdgesCatalog: (items: CatalogItem[]) =>
     storageService.saveCatalogList('catalog_edges', items),
 
-  saveFillingsCatalog: (items: CatalogItem[]): Promise<void> =>
+  saveFillingsCatalog: (items: CatalogItem[]) =>
     storageService.saveCatalogList('catalog_fillings', items),
 
   // --- LOGS Y PREFERENCIAS ---
@@ -311,13 +228,11 @@ export const storageService = {
 
       if (error) return [];
 
-      const rows = (data ?? []) as AuditLogRow[];
-
-      return rows.map((l: AuditLogRow): AuditLogEntry => ({
-        id: l.id,
+      return (data || []).map((l: any) => ({
+        id: Number(l.id),
         action: l.action,
         performedBy: l.performed_by,
-        targetUser: l.target_user ?? undefined,
+        targetUser: l.target_user ?? '',
         timestamp: l.timestamp,
       }));
     } catch (e) {
@@ -326,9 +241,7 @@ export const storageService = {
     }
   },
 
-  addLog: async (
-    log: Omit<AuditLogEntry, 'id' | 'timestamp'>
-  ): Promise<void> => {
+  addLog: async (log: Omit<AuditLogEntry, 'id' | 'timestamp'>): Promise<void> => {
     try {
       await supabase.from('audit_log').insert([
         {
@@ -350,13 +263,18 @@ export const storageService = {
         .eq('key', 'sort_preferences')
         .single();
 
-      if (error) return DEFAULT_SORT_PREFS;
+      if (error) {
+        return { products: 'manual', edges: 'manual', fillings: 'manual' };
+      }
 
-      const row = data as SortPrefsRow | null;
-      return row?.data ?? DEFAULT_SORT_PREFS;
+      return (data?.data as SortPrefs) || {
+        products: 'manual',
+        edges: 'manual',
+        fillings: 'manual',
+      };
     } catch (e) {
       console.error('Error fetching sort preferences:', e);
-      return DEFAULT_SORT_PREFS;
+      return { products: 'manual', edges: 'manual', fillings: 'manual' };
     }
   },
 

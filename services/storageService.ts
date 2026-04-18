@@ -16,6 +16,17 @@ const DEFAULT_SORT_PREFS: SortPrefs = {
   fillings: 'manual',
 };
 
+const isUuid = (value: unknown): boolean => {
+  return (
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+  );
+};
+
+const ensureUuid = (value: unknown): string => {
+  return isUuid(value) ? String(value) : crypto.randomUUID();
+};
+
 export const storageService = {
   // --- ÓRDENES (Pedidos) ---
   getOrders: async (): Promise<Order[]> => {
@@ -136,11 +147,11 @@ export const storageService = {
 
   saveCustomer: async (customer: Customer): Promise<void> => {
     const payload = {
-      id: customer.id,
+      id: ensureUuid(customer.id),
       name: customer.name,
       phone: customer.phone,
-      email: customer.email,
-      created_at: customer.createdAt,
+      email: customer.email ?? '',
+      created_at: customer.createdAt ?? new Date().toISOString(),
     };
 
     const { error } = await supabase.from('customers').upsert(payload);
@@ -170,6 +181,7 @@ export const storageService = {
 
   saveUser: async (user: AppUser): Promise<void> => {
     const payload = {
+      id: isUuid(user.id) ? user.id : undefined,
       full_name: user.name,
       username: user.username,
       pin_hash: user.pin,
@@ -177,10 +189,16 @@ export const storageService = {
       is_active: user.isActive,
     };
 
-    if (user.id && user.id.includes('-')) {
+    if (isUuid(user.id)) {
       const { error } = await supabase
         .from('profiles')
-        .update(payload)
+        .update({
+          full_name: user.name,
+          username: user.username,
+          pin_hash: user.pin,
+          role: user.role,
+          is_active: user.isActive,
+        })
         .eq('id', user.id);
 
       if (error) {
@@ -188,7 +206,15 @@ export const storageService = {
         throw error;
       }
     } else {
-      const { error } = await supabase.from('profiles').insert([payload]);
+      const { error } = await supabase.from('profiles').insert([
+        {
+          full_name: user.name,
+          username: user.username,
+          pin_hash: user.pin,
+          role: user.role,
+          is_active: user.isActive,
+        },
+      ]);
 
       if (error) {
         console.error('Error inserting user:', error);
@@ -231,11 +257,11 @@ export const storageService = {
     items: CatalogItem[]
   ): Promise<void> => {
     const payload = items.map((i: CatalogItem) => ({
-      id: i.id && i.id.includes('-') ? i.id : crypto.randomUUID(),
+      id: ensureUuid(i.id),
       type,
       name: i.name,
       is_active: i.isActive,
-      order_index: i.orderIndex,
+      order_index: i.orderIndex ?? 0,
     }));
 
     const { error } = await supabase.from('catalog_items').upsert(payload);

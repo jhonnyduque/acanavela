@@ -231,7 +231,7 @@ export const storageService = {
     items: CatalogItem[]
   ): Promise<void> => {
     const payload = items.map((i: CatalogItem) => ({
-      id: i.id,
+      id: i.id && i.id.includes('-') ? i.id : null,
       type,
       name: i.name,
       is_active: i.isActive,

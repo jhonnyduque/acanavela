@@ -356,7 +356,7 @@ const App: React.FC = () => {
         <div className="fixed bottom-24 right-4 lg:bottom-6 lg:right-6 z-[400] bg-white p-3 rounded-2xl shadow-2xl border border-slate-100 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-2">
           <RefreshCw size={16} className="text-emerald-500 animate-spin" />
           <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-            Nube conectada v1...
+            Nube conectada v5...
           </span>
         </div>
       )}

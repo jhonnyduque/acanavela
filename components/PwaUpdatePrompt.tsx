@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { RefreshCw, X, Wifi } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const PwaUpdatePrompt: React.FC = () => {
+  const [manualNeedRefresh, setManualNeedRefresh] = useState(false);
+
   const {
     offlineReady: [offlineReady, setOfflineReady],
     needRefresh: [needRefresh, setNeedRefresh],
@@ -15,6 +17,26 @@ const PwaUpdatePrompt: React.FC = () => {
 
       if (!registration) return;
 
+      registration.addEventListener('updatefound', () => {
+        const newWorker = registration.installing;
+
+        console.log('[PWA] updatefound:', newWorker);
+
+        if (!newWorker) return;
+
+        newWorker.addEventListener('statechange', () => {
+          console.log('[PWA] nuevo SW state:', newWorker.state);
+
+          if (
+            newWorker.state === 'installed' &&
+            navigator.serviceWorker.controller
+          ) {
+            console.log('[PWA] nueva versión esperando activación');
+            setManualNeedRefresh(true);
+          }
+        });
+      });
+
       setInterval(() => {
         console.log('[PWA] Buscando actualización...');
         registration.update();
@@ -26,34 +48,46 @@ const PwaUpdatePrompt: React.FC = () => {
     }
   });
 
+  useEffect(() => {
+    if (needRefresh) {
+      console.log('[PWA] needRefresh detectado por useRegisterSW');
+      setManualNeedRefresh(true);
+    }
+  }, [needRefresh]);
+
   const close = () => {
     setOfflineReady(false);
     setNeedRefresh(false);
+    setManualNeedRefresh(false);
   };
 
-  if (!offlineReady && !needRefresh) return null;
+  const shouldShowUpdate = needRefresh || manualNeedRefresh;
+
+  if (!offlineReady && !shouldShowUpdate) return null;
 
   return (
     <div className="fixed left-4 right-4 bottom-24 lg:left-auto lg:right-6 lg:bottom-6 z-[700] animate-in slide-in-from-bottom-4">
       <div className="mx-auto lg:mx-0 max-w-md rounded-3xl bg-slate-950 text-white shadow-2xl border border-white/10 overflow-hidden">
         <div className="p-5 flex items-start gap-4">
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
-            {needRefresh ? <RefreshCw size={22} /> : <Wifi size={22} />}
+            {shouldShowUpdate ? <RefreshCw size={22} /> : <Wifi size={22} />}
           </div>
 
           <div className="flex-1 min-w-0">
             <h3 className="text-base font-bold tracking-tight">
-              {needRefresh ? 'Nueva versión disponible' : 'Acanavela lista sin conexión'}
+              {shouldShowUpdate
+                ? 'Nueva versión disponible'
+                : 'Acanavela lista sin conexión'}
             </h3>
 
             <p className="text-sm text-slate-300 mt-1 leading-relaxed">
-              {needRefresh
+              {shouldShowUpdate
                 ? 'Hay una actualización de Acanavela. Actualiza para cargar la versión más reciente.'
                 : 'La aplicación quedó preparada para abrir más rápido y funcionar mejor como PWA.'}
             </p>
 
             <div className="flex gap-3 mt-4">
-              {needRefresh && (
+              {shouldShowUpdate && (
                 <button
                   type="button"
                   onClick={() => updateServiceWorker(true)}

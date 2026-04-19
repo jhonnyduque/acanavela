@@ -18,6 +18,7 @@ import OrderDetailsModal from './components/OrderDetailsModal';
 import PrivacyView from './components/PrivacyView';
 import CustomerList from './components/CustomerList';
 import Login from './components/Login';
+import PwaUpdatePrompt from './components/PwaUpdatePrompt';
 
 import {
   LayoutDashboard,
@@ -70,7 +71,6 @@ const LazyFallback: React.FC<{ text?: string }> = ({ text = 'Cargando...' }) => 
 );
 
 const App: React.FC = () => {
-  // ─── Autenticación con token seguro ────────────────────────────────────────
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
     const saved = localStorage.getItem('acanavela_user');
     return saved ? JSON.parse(saved) : null;
@@ -80,7 +80,9 @@ const App: React.FC = () => {
     const token = localStorage.getItem('acanavela_session');
     const userId = validateSessionToken(token);
     const savedUser = localStorage.getItem('acanavela_user');
+
     if (!userId || !savedUser) return false;
+
     try {
       const user: AppUser = JSON.parse(savedUser);
       return user.id === userId;
@@ -128,6 +130,7 @@ const App: React.FC = () => {
 
   const refreshData = async () => {
     setIsLoading(true);
+
     try {
       const [fetchedOrders, fetchedCustomers] = await Promise.all([
         storageService.getOrders(),
@@ -174,7 +177,6 @@ const App: React.FC = () => {
     localStorage.setItem('acanavela_sidebar_collapsed', String(isSidebarCollapsed));
   }, [isSidebarCollapsed]);
 
-  // ─── Login: genera token seguro ────────────────────────────────────────────
   const handleLogin = (user: AppUser) => {
     const token = createSessionToken(user.id);
     localStorage.setItem('acanavela_session', token);
@@ -184,9 +186,9 @@ const App: React.FC = () => {
     setActiveTab('dashboard');
   };
 
-  // ─── Logout: elimina token ─────────────────────────────────────────────────
   const handleLogout = () => {
     if (!window.confirm('¿Deseas cerrar la sesión?')) return;
+
     localStorage.removeItem('acanavela_session');
     localStorage.removeItem('acanavela_user');
     setIsAuthenticated(false);
@@ -249,13 +251,13 @@ const App: React.FC = () => {
     setActiveTab('register');
   };
 
-  // ─── Eliminación con verificación de contraseña vía Supabase RPC ──────────
   const confirmDeletion = async () => {
     if (securityModal.requiresPassword) {
       setIsLoading(true);
+
       try {
         const { data: isValid, error } = await supabase.rpc('verify_admin_password', {
-          input_password: adminPassInput
+          input_password: adminPassInput.trim()
         });
 
         if (error || !isValid) {
@@ -354,10 +356,10 @@ const App: React.FC = () => {
         <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[500] w-full max-w-[320px] animate-in slide-in-from-top-4">
           <div
             className={`p-4 rounded-2xl shadow-2xl flex items-center gap-3 border ${notification.type === 'success'
-              ? 'bg-emerald-500 text-white border-emerald-400'
-              : notification.type === 'error'
-                ? 'bg-rose-500 text-white border-rose-400'
-                : 'bg-amber-500 text-white border-amber-400'
+                ? 'bg-emerald-500 text-white border-emerald-400'
+                : notification.type === 'error'
+                  ? 'bg-rose-500 text-white border-rose-400'
+                  : 'bg-amber-500 text-white border-amber-400'
               }`}
           >
             <CheckCircle size={20} />
@@ -407,8 +409,8 @@ const App: React.FC = () => {
                 type="button"
                 onClick={() => setIsSidebarCollapsed(prev => !prev)}
                 className={`hidden lg:flex w-9 h-9 items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors ${isSidebarCollapsed
-                  ? 'absolute top-6 right-[-18px] bg-slate-900 border border-slate-800 shadow-xl'
-                  : ''
+                    ? 'absolute top-6 right-[-18px] bg-slate-900 border border-slate-800 shadow-xl'
+                    : ''
                   }`}
                 title={isSidebarCollapsed ? 'Expandir menú' : 'Contraer menú'}
               >
@@ -603,8 +605,8 @@ const App: React.FC = () => {
             type="button"
             onClick={() => setIsMobileMoreOpen(true)}
             className={`flex flex-col items-center justify-center gap-1 rounded-2xl py-2.5 transition-all ${['calendar', 'stats', 'config', 'privacy'].includes(activeTab)
-              ? 'text-emerald-600 bg-emerald-50'
-              : 'text-slate-400'
+                ? 'text-emerald-600 bg-emerald-50'
+                : 'text-slate-400'
               }`}
           >
             <MoreHorizontal size={22} />
@@ -652,8 +654,8 @@ const App: React.FC = () => {
                     type="button"
                     onClick={() => goToTab(item.id)}
                     className={`flex items-center gap-3 p-4 rounded-2xl border transition-all ${isActive
-                      ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
-                      : 'bg-slate-50 border-slate-100 text-slate-600'
+                        ? 'bg-emerald-50 border-emerald-100 text-emerald-700'
+                        : 'bg-slate-50 border-slate-100 text-slate-600'
                       }`}
                   >
                     <div
@@ -707,6 +709,7 @@ const App: React.FC = () => {
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[600] flex items-center justify-center p-4">
           <div className="bg-white rounded-[2rem] w-full max-w-md p-10 animate-in zoom-in-95 shadow-2xl">
             <h3 className="text-xl font-bold mb-4 text-slate-800">Confirmación de Nube</h3>
+
             <p className="text-sm text-slate-500 mb-6">
               Esta acción eliminará permanentemente los datos de la base de datos central en Supabase.
             </p>
@@ -729,6 +732,7 @@ const App: React.FC = () => {
               >
                 Eliminar Globalmente
               </button>
+
               <button
                 type="button"
                 onClick={() =>
@@ -742,6 +746,8 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+
+      <PwaUpdatePrompt />
     </div>
   );
 };

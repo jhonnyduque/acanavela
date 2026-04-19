@@ -13,6 +13,7 @@ import { Order, Customer, AppUser, OrderStatus } from './types';
 import Dashboard from './components/Dashboard';
 import OrderForm from './components/OrderForm';
 import OrderList from './components/OrderList';
+import OrderDetailsModal from './components/OrderDetailsModal';
 import PrivacyView from './components/PrivacyView';
 import CustomerList from './components/CustomerList';
 import Login from './components/Login';
@@ -223,6 +224,19 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDuplicateOrder = (order: Order) => {
+    const duplicatedOrder: Order = {
+      ...order,
+      id: 0,
+      status: 'Recibido',
+      createdAt: new Date().toISOString()
+    };
+
+    setViewingOrder(null);
+    setEditingOrder(duplicatedOrder);
+    setActiveTab('register');
+  };
+
   const confirmDeletion = async () => {
     if (securityModal.requiresPassword && adminPassInput !== ADMIN_PASSWORD) {
       showNotification('Contraseña incorrecta', 'error');
@@ -365,7 +379,9 @@ const App: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setIsSidebarCollapsed(prev => !prev)}
-                className={`hidden lg:flex w-9 h-9 items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors ${isSidebarCollapsed ? 'absolute top-6 right-[-18px] bg-slate-900 border border-slate-800 shadow-xl' : ''
+                className={`hidden lg:flex w-9 h-9 items-center justify-center rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors ${isSidebarCollapsed
+                    ? 'absolute top-6 right-[-18px] bg-slate-900 border border-slate-800 shadow-xl'
+                    : ''
                   }`}
                 title={isSidebarCollapsed ? 'Expandir menú' : 'Contraer menú'}
               >
@@ -637,6 +653,27 @@ const App: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {viewingOrder && (
+        <OrderDetailsModal
+          order={viewingOrder}
+          onClose={() => setViewingOrder(null)}
+          onEdit={(order) => {
+            setViewingOrder(null);
+            setEditingOrder(order);
+            setActiveTab('register');
+          }}
+          onDelete={(id) => {
+            setViewingOrder(null);
+            setSecurityModal({
+              isOpen: true,
+              ids: [id],
+              requiresPassword: true
+            });
+          }}
+          onDuplicate={handleDuplicateOrder}
+        />
       )}
 
       {securityModal.isOpen && (

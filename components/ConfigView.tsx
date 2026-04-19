@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Order, AppUser, UserRole, AuditLogEntry, CatalogItem, SortOption, SortPrefs } from '../types';
 import { storageService } from '../services/storageService';
-import { 
-  Database, Download, Upload, Lock, Shield, Users, UserPlus, 
-  Edit3, X, Save, History, Clock, UserCheck, 
+import { hashPin } from '../utils';
+import {
+  Database, Download, Upload, Lock, Shield, Users, UserPlus,
+  Edit3, X, Save, History, Clock, UserCheck,
   Plus, Power, AlertCircle, Info,
   Search, SortAsc, TrendingUp, Trophy, ArrowDownWideNarrow,
   Package, ListTree, CheckCircle2, Droplets,
@@ -32,21 +33,21 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
   const [editingUser, setEditingUser] = useState<AppUser | null>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
   const [isSavingUser, setIsSavingUser] = useState(false);
-  
+
   const [editingItem, setEditingItem] = useState<{ type: 'product' | 'edge' | 'filling', item: CatalogItem } | null>(null);
   const [newItemName, setNewItemName] = useState('');
   const [newEdgeName, setNewEdgeName] = useState('');
   const [newFillingName, setNewFillingName] = useState('');
-  
+
   const [productSearchTerm, setProductSearchTerm] = useState('');
   const [productSortOption, setProductSortOption] = useState<SortOption>('manual');
-  
+
   const [edgeSearchTerm, setEdgeSearchTerm] = useState('');
   const [edgeSortOption, setEdgeSortOption] = useState<SortOption>('manual');
 
   const [fillingSearchTerm, setFillingSearchTerm] = useState('');
   const [fillingSortOption, setFillingSortOption] = useState<SortOption>('manual');
-  
+
   const [pendingToggle, setPendingToggle] = useState<{ type: 'product' | 'edge' | 'filling', id: string } | null>(null);
 
   const isAdmin = currentUser.role === 'ADMIN';
@@ -88,11 +89,11 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
     const prodStats: Record<string, ItemStats> = {};
     const edgeStats: Record<string, ItemStats> = {};
     const fillStats: Record<string, ItemStats> = {};
-    
+
     products.forEach(p => prodStats[p.name] = { count: 0, lastUsed: null });
     edges.forEach(e => edgeStats[e.name] = { count: 0, lastUsed: null });
     fillings.forEach(f => fillStats[f.name] = { count: 0, lastUsed: null });
-    
+
     orders.forEach(order => {
       order.products.forEach(p => {
         if (prodStats[p.type]) {
@@ -122,7 +123,7 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
     let result = [...list].filter(i => i.name.toLowerCase().includes(term.toLowerCase()));
     result.sort((a, b) => {
       if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
-      
+
       if (sort === 'orders') {
         const cA = stats[a.name]?.count || 0;
         const cB = stats[b.name]?.count || 0;
@@ -130,7 +131,7 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
       } else if (sort === 'name') {
         return a.name.localeCompare(b.name);
       }
-      
+
       return (a.orderIndex ?? 0) - (b.orderIndex ?? 0);
     });
     return result;
@@ -150,7 +151,7 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
 
     const currentList = type === 'product' ? products : (type === 'edge' ? edges : fillings);
     const maxOrder = currentList.reduce((max, item) => Math.max(max, item.orderIndex ?? 0), 0);
-    
+
     const newItem: CatalogItem = {
       id: Math.random().toString(36).substr(2, 9),
       name: name.trim(),
@@ -175,7 +176,7 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
       await storageService.saveFillingsCatalog(updated);
       setNewFillingName('');
     }
-    
+
     await storageService.addLog({ action: `Añadido ${type}: ${newItem.name}`, performedBy: currentUser.name, targetUser: '-' });
     if (showNotification) showNotification(`${type.charAt(0).toUpperCase() + type.slice(1)} añadido con éxito`, 'success');
   };
@@ -183,7 +184,7 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
   const moveItem = async (type: 'product' | 'edge' | 'filling', id: string, direction: 'up' | 'down') => {
     const list = type === 'product' ? products : (type === 'edge' ? edges : fillings);
     const processed = type === 'product' ? processedProducts : (type === 'edge' ? processedEdges : processedFillings);
-    
+
     const index = processed.findIndex(i => i.id === id);
     if (index === -1) return;
     if (direction === 'up' && index === 0) return;
@@ -272,18 +273,18 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
     if (!isAdmin) return;
     const targetUser = users.find(u => u.id === id);
     if (!targetUser) return;
-    
+
     const updatedUser = { ...targetUser, isActive: !targetUser.isActive };
-    
+
     setIsSavingUser(true);
     try {
       await storageService.saveUser(updatedUser);
-      await fetchData(); // Refrescar lista desde Supabase
-      
-      await storageService.addLog({ 
-        action: `${updatedUser.isActive ? 'Activado' : 'Desactivado'} usuario`, 
-        performedBy: currentUser.name, 
-        targetUser: updatedUser.name || '-' 
+      await fetchData();
+
+      await storageService.addLog({
+        action: `${updatedUser.isActive ? 'Activado' : 'Desactivado'} usuario`,
+        performedBy: currentUser.name,
+        targetUser: updatedUser.name || '-'
       });
       if (showNotification) showNotification(`Usuario ${updatedUser.isActive ? 'activado' : 'desactivado'}`, 'success');
     } finally {
@@ -291,28 +292,35 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
     }
   };
 
+  // ─── Guardar usuario con PIN hasheado ────────────────────────────────────
   const handleSaveUser = async (u: AppUser) => {
     setIsSavingUser(true);
     try {
-      // No forzamos un ID aleatorio si es nuevo para dejar que Supabase genere el UUID
-      const userToSave = { 
-        ...u, 
+      // Solo hashear el PIN si cambió (no es el hash anterior)
+      // Si el PIN tiene 4 dígitos, es un PIN nuevo → hashear
+      // Si tiene 64 caracteres (hex SHA-256), ya está hasheado → no tocar
+      const pinNeedsHashing = u.pin.length <= 4;
+      const hashedPin = pinNeedsHashing ? await hashPin(u.pin) : u.pin;
+
+      const userToSave = {
+        ...u,
+        pin: hashedPin,
         isActive: u.isActive !== undefined ? u.isActive : true
       };
-      
+
       await storageService.saveUser(userToSave);
-      
+
       setEditingUser(null);
       setIsAddingUser(false);
-      
+
       if (showNotification) showNotification(isAddingUser ? 'Nuevo usuario creado' : 'Perfil actualizado', 'success');
 
       if (userToSave.id === currentUser.id) {
         onUpdateUser(userToSave);
       }
-      
-      fetchData(); 
-      
+
+      fetchData();
+
     } catch (err) {
       console.error("Error saving user:", err);
       if (showNotification) showNotification('Error al guardar usuario', 'error');
@@ -335,11 +343,11 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
             </div>
           </div>
 
-          <CatalogSection 
+          <CatalogSection
             type="product"
-            title="Productos" 
-            items={processedProducts} 
-            searchTerm={productSearchTerm} 
+            title="Productos"
+            items={processedProducts}
+            searchTerm={productSearchTerm}
             onSearchChange={setProductSearchTerm}
             sortOption={productSortOption}
             onSortChange={(val: SortOption) => setProductSortOption(val)}
@@ -356,11 +364,11 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
             icon={<Package size={24} className="text-emerald-500" />}
           />
 
-          <CatalogSection 
+          <CatalogSection
             type="edge"
-            title="Contornos (Bordes)" 
-            items={processedEdges} 
-            searchTerm={edgeSearchTerm} 
+            title="Contornos (Bordes)"
+            items={processedEdges}
+            searchTerm={edgeSearchTerm}
             onSearchChange={setEdgeSearchTerm}
             sortOption={edgeSortOption}
             onSortChange={(val: SortOption) => setEdgeSortOption(val)}
@@ -377,11 +385,11 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
             icon={<ListTree size={24} className="text-emerald-500" />}
           />
 
-          <CatalogSection 
+          <CatalogSection
             type="filling"
-            title="Rellenos" 
-            items={processedFillings} 
-            searchTerm={fillingSearchTerm} 
+            title="Rellenos"
+            items={processedFillings}
+            searchTerm={fillingSearchTerm}
             onSearchChange={setFillingSearchTerm}
             sortOption={fillingSortOption}
             onSortChange={(val: SortOption) => setFillingSortOption(val)}
@@ -415,7 +423,7 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
             </button>
           )}
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
           {isSavingUser && (
             <div className="absolute inset-0 z-10 bg-white/40 backdrop-blur-[1px] flex items-center justify-center">
@@ -440,8 +448,8 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
             </div>
             <p className="text-sm text-slate-600 leading-relaxed mb-6">Este elemento tiene pedidos registrados. Al inactivarlo:</p>
             <ul className="space-y-2 mb-8 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-              <li className="flex items-center gap-2 text-emerald-600"><CheckCircle2 size={14}/> No aparecerá en nuevos pedidos</li>
-              <li className="flex items-center gap-2 text-emerald-600"><CheckCircle2 size={14}/> El historial se mantendrá intacto</li>
+              <li className="flex items-center gap-2 text-emerald-600"><CheckCircle2 size={14} /> No aparecerá en nuevos pedidos</li>
+              <li className="flex items-center gap-2 text-emerald-600"><CheckCircle2 size={14} /> El historial se mantendrá intacto</li>
             </ul>
             <div className="grid grid-cols-2 gap-4">
               <button onClick={() => confirmToggleStatus(pendingToggle.type, pendingToggle.id)} className="py-4 bg-slate-900 text-white font-bold rounded-2xl text-xs uppercase tracking-widest active:scale-95 transition-all">Inactivar</button>
@@ -452,13 +460,13 @@ const ConfigView: React.FC<ConfigViewProps> = ({ currentUser, orders, onImport, 
       )}
 
       {editingUser && (
-        <EditProfileModal 
-          user={editingUser} 
+        <EditProfileModal
+          user={editingUser}
           isSaving={isSavingUser}
-          onClose={() => { setEditingUser(null); setIsAddingUser(false); }} 
-          onSave={handleSaveUser} 
-          isNew={isAddingUser} 
-          isAdmin={isAdmin} 
+          onClose={() => { setEditingUser(null); setIsAddingUser(false); }}
+          onSave={handleSaveUser}
+          isNew={isAddingUser}
+          isAdmin={isAdmin}
         />
       )}
     </div>
@@ -475,7 +483,7 @@ const CatalogSection = ({ title, items, searchTerm, onSearchChange, sortOption, 
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16}/>
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input type="text" placeholder="Buscar..." value={searchTerm} onChange={e => onSearchChange(e.target.value)} className="w-full sm:w-48 pl-11 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-semibold outline-none focus:bg-white focus:ring-4 focus:ring-emerald-500/10 transition-all" />
           </div>
           <select value={sortOption} onChange={e => onSortChange(e.target.value as SortOption)} className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-600 outline-none cursor-pointer hover:bg-white transition-all">
@@ -485,7 +493,7 @@ const CatalogSection = ({ title, items, searchTerm, onSearchChange, sortOption, 
           </select>
           <div className="flex gap-2">
             <input type="text" placeholder={placeholder} value={newItemValue} onChange={e => onNewItemChange(e.target.value)} className="px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold outline-none focus:bg-white" />
-            <button onClick={onAddItem} className="p-3 bg-emerald-500 text-white rounded-2xl hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 active:scale-90 transition-transform"><Plus size={24}/></button>
+            <button onClick={onAddItem} className="p-3 bg-emerald-500 text-white rounded-2xl hover:bg-emerald-600 shadow-lg shadow-emerald-500/20 active:scale-90 transition-transform"><Plus size={24} /></button>
           </div>
         </div>
       </div>
@@ -517,28 +525,28 @@ const CatalogSection = ({ title, items, searchTerm, onSearchChange, sortOption, 
                     </div>
                   )}
                 </div>
-                
+
                 <div className="flex flex-col gap-1.5 shrink-0">
                   <div className="flex gap-1.5">
-                    <button onClick={() => onEdit(item)} className="p-2.5 text-slate-400 hover:text-indigo-500 bg-white border border-slate-100 rounded-xl transition-all shadow-sm"><Edit3 size={16}/></button>
-                    <button onClick={() => onToggle(item.id)} className={`p-2.5 rounded-xl border transition-all shadow-sm ${item.isActive ? 'text-emerald-500 bg-emerald-50 border-emerald-100' : 'text-slate-400 bg-slate-200 border-slate-200'}`}><Power size={16}/></button>
+                    <button onClick={() => onEdit(item)} className="p-2.5 text-slate-400 hover:text-indigo-500 bg-white border border-slate-100 rounded-xl transition-all shadow-sm"><Edit3 size={16} /></button>
+                    <button onClick={() => onToggle(item.id)} className={`p-2.5 rounded-xl border transition-all shadow-sm ${item.isActive ? 'text-emerald-500 bg-emerald-50 border-emerald-100' : 'text-slate-400 bg-slate-200 border-slate-200'}`}><Power size={16} /></button>
                   </div>
-                  
+
                   {sortOption === 'manual' && (
                     <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button 
-                        disabled={!canMoveUp} 
-                        onClick={() => onMove(item.id, 'up')} 
+                      <button
+                        disabled={!canMoveUp}
+                        onClick={() => onMove(item.id, 'up')}
                         className={`p-2 rounded-lg border transition-all ${canMoveUp ? 'text-slate-600 bg-slate-50 border-slate-200 hover:bg-slate-100' : 'text-slate-200 bg-slate-50 border-slate-100'}`}
                       >
-                        <ChevronUp size={14}/>
+                        <ChevronUp size={14} />
                       </button>
-                      <button 
-                        disabled={!canMoveDown} 
-                        onClick={() => onMove(item.id, 'down')} 
+                      <button
+                        disabled={!canMoveDown}
+                        onClick={() => onMove(item.id, 'down')}
                         className={`p-2 rounded-lg border transition-all ${canMoveDown ? 'text-slate-600 bg-slate-50 border-slate-200 hover:bg-slate-100' : 'text-slate-200 bg-slate-50 border-slate-100'}`}
                       >
-                        <ChevronDown size={14}/>
+                        <ChevronDown size={14} />
                       </button>
                     </div>
                   )}
@@ -590,26 +598,26 @@ const EditProfileModal = ({ user, onClose, onSave, isNew, isAdmin, isSaving }: a
         <form onSubmit={(e) => { e.preventDefault(); onSave(formData); }} className="p-10 pt-4 space-y-6">
           <div className="space-y-2">
             <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Nombre Completo</label>
-            <input required disabled={(!isAdmin && !isNew) || isSaving} type="text" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white font-medium disabled:opacity-50" />
+            <input required disabled={(!isAdmin && !isNew) || isSaving} type="text" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white font-medium disabled:opacity-50" />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Nombre de Usuario</label>
-            <input required disabled={!isNew || isSaving} type="text" value={formData.username} onChange={e => setFormData({...formData, username: e.target.value.toLowerCase().trim()})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-medium text-slate-400 disabled:opacity-50" />
+            <input required disabled={!isNew || isSaving} type="text" value={formData.username} onChange={e => setFormData({ ...formData, username: e.target.value.toLowerCase().trim() })} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none font-medium text-slate-400 disabled:opacity-50" />
           </div>
           <div className="space-y-2">
             <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1"> PIN (4 dígitos)</label>
-            <input required disabled={isSaving} type="password" maxLength={4} value={formData.pin} onChange={e => setFormData({...formData, pin: e.target.value.replace(/\D/g, '')})} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white font-medium text-center tracking-[1em] text-lg disabled:opacity-50" placeholder="••••" />
+            <input required disabled={isSaving} type="password" maxLength={4} value={formData.pin} onChange={e => setFormData({ ...formData, pin: e.target.value.replace(/\D/g, '') })} className="w-full px-6 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:bg-white font-medium text-center tracking-[1em] text-lg disabled:opacity-50" placeholder="••••" />
           </div>
           {isAdmin && (
             <div className="space-y-3">
               <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest ml-1">Rol de Acceso</label>
               <div className="flex p-1 bg-slate-100 rounded-2xl gap-1">
                 {(['ADMIN', 'MANAGER', 'VENDOR']).map((r) => (
-                  <button 
-                    key={r} 
-                    type="button" 
+                  <button
+                    key={r}
+                    type="button"
                     disabled={isSaving}
-                    onClick={() => setFormData({...formData, role: r})} 
+                    onClick={() => setFormData({ ...formData, role: r })}
                     className={`flex-1 py-3 rounded-xl text-[9px] font-semibold uppercase tracking-widest transition-all ${formData.role === r ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-white/50'} disabled:opacity-50`}
                   >
                     {r === 'MANAGER' ? 'Encargado' : r === 'VENDOR' ? 'Vendedor' : 'Admin'}
@@ -619,12 +627,12 @@ const EditProfileModal = ({ user, onClose, onSave, isNew, isAdmin, isSaving }: a
             </div>
           )}
           <div className="flex gap-4 pt-6">
-            <button 
-              type="submit" 
+            <button
+              type="submit"
               disabled={isSaving}
               className="flex-[1.5] py-4 bg-indigo-600 text-white font-semibold rounded-2xl shadow-xl shadow-indigo-600/20 active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              {isSaving ? <RefreshCw className="animate-spin" size={20}/> : <Save size={20}/>}
+              {isSaving ? <RefreshCw className="animate-spin" size={20} /> : <Save size={20} />}
               {isSaving ? "Guardando..." : "Guardar"}
             </button>
             <button type="button" onClick={onClose} disabled={isSaving} className="flex-1 py-4 bg-slate-50 text-slate-500 font-medium rounded-2xl disabled:opacity-50">Cerrar</button>

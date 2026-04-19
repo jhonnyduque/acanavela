@@ -13,7 +13,9 @@ import {
   AlertCircle,
   CheckCircle,
   Search,
-  UserCheck
+  UserCheck,
+  Edit3,
+  Copy
 } from 'lucide-react';
 
 interface OrderFormProps {
@@ -31,6 +33,9 @@ const OrderForm: React.FC<OrderFormProps> = ({
   orders,
   editingOrder
 }) => {
+  const isEditMode = Boolean(editingOrder && editingOrder.id !== 0);
+  const isDuplicateMode = Boolean(editingOrder && editingOrder.id === 0);
+
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [pickupDate, setPickupDate] = useState(new Date().toISOString().split('T')[0]);
@@ -59,6 +64,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
         storageService.getFillingsCatalog(),
         storageService.getSortPrefs()
       ]);
+
       setProductCatalog(prods);
       setEdgeCatalog(edgs);
       setFillingCatalog(fills);
@@ -74,6 +80,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
       setPickupTime(editingOrder.pickupTime);
       setProducts(editingOrder.products);
       setStatus(editingOrder.status);
+      setErrors({});
     } else {
       setCustomerName('');
       setCustomerPhone('');
@@ -81,6 +88,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
       setPickupTime('11:00');
       setStatus('Recibido');
       setProducts([]);
+      setErrors({});
     }
   }, [editingOrder]);
 
@@ -115,6 +123,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
         } else if (sortType === 'name') {
           return a.name.localeCompare(b.name);
         }
+
         return (a.orderIndex ?? 0) - (b.orderIndex ?? 0);
       });
   };
@@ -142,6 +151,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
 
   const filteredSuggestions = useMemo(() => {
     if (customerName.length < 2) return [];
+
     return customers
       .filter(c => c.name.toLowerCase().includes(customerName.toLowerCase()))
       .slice(0, 5);
@@ -165,6 +175,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
     setShowSuggestions(true);
 
     const trimmed = val.trim();
+
     if (trimmed && trimmed.split(/\s+/).filter(w => w.length > 0).length < 2) {
       setErrors(prev => ({ ...prev, customerName: 'Debe colocar nombre y apellido' }));
     } else {
@@ -183,6 +194,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
     }
 
     const found = customers.find(c => c.phone === val);
+
     if (found) {
       setCustomerName(found.name);
       setShowSuggestions(false);
@@ -202,6 +214,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
     );
 
     const index = products.findIndex(p => p.id === id);
+
     if (field === 'type' && value) {
       setErrors(prev => {
         const next = { ...prev };
@@ -222,6 +235,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
     }
 
     const trimmedPhone = customerPhone.trim();
+
     if (!trimmedPhone) {
       newErrors.customerPhone = 'El teléfono es obligatorio';
     } else if (trimmedPhone.length !== 9) {
@@ -235,7 +249,21 @@ const OrderForm: React.FC<OrderFormProps> = ({
     });
 
     setErrors(newErrors);
+
     return Object.keys(newErrors).length === 0;
+  };
+
+  const getSubmitLabel = () => {
+    if (isSaving) return 'Guardando...';
+    if (isEditMode) return 'Actualizar Pedido';
+    if (isDuplicateMode) return 'Guardar como Nuevo Pedido';
+    return 'Guardar Pedido';
+  };
+
+  const getSuccessLabel = () => {
+    if (isEditMode) return '¡Pedido actualizado!';
+    if (isDuplicateMode) return '¡Nuevo pedido creado!';
+    return '¡Pedido guardado!';
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -246,14 +274,14 @@ const OrderForm: React.FC<OrderFormProps> = ({
     setIsSaving(true);
 
     const order: Order = {
-      id: editingOrder?.id || 0,
+      id: isEditMode ? editingOrder!.id : 0,
       customerName: customerName.trim(),
       customerPhone,
       pickupDate,
       pickupTime,
       status,
       products,
-      createdAt: editingOrder?.createdAt || new Date().toISOString()
+      createdAt: isEditMode && editingOrder ? editingOrder.createdAt : new Date().toISOString()
     };
 
     try {
@@ -283,8 +311,9 @@ const OrderForm: React.FC<OrderFormProps> = ({
             <div className="p-6 bg-emerald-100 text-emerald-600 rounded-full mb-6">
               <CheckCircle size={56} className="animate-bounce" />
             </div>
+
             <p className="text-2xl font-semibold text-slate-800 text-center">
-              ¡Pedido guardado!
+              {getSuccessLabel()}
             </p>
           </div>
         </div>
@@ -294,15 +323,52 @@ const OrderForm: React.FC<OrderFormProps> = ({
         onSubmit={handleSubmit}
         className={`space-y-10 transition-all ${showSuccess ? 'opacity-20 blur-sm pointer-events-none' : ''}`}
       >
-        <h2 className="text-3xl font-semibold text-slate-900 tracking-tight">
-          {editingOrder ? `Editar Pedido #${editingOrder.id}` : 'Nuevo Pedido'}
-        </h2>
+        <div className="space-y-3">
+          <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+            <div>
+              <h2 className="text-3xl font-semibold text-slate-900 tracking-tight">
+                {isEditMode
+                  ? `Editando Pedido #${editingOrder?.id}`
+                  : isDuplicateMode
+                    ? 'Duplicando Pedido'
+                    : 'Nuevo Pedido'}
+              </h2>
+
+              {isEditMode && (
+                <p className="text-sm font-medium text-amber-600 mt-2">
+                  Estás modificando un pedido existente. Revisa los datos antes de actualizarlo.
+                </p>
+              )}
+
+              {isDuplicateMode && (
+                <p className="text-sm font-medium text-indigo-600 mt-2">
+                  Estás usando un pedido existente como base. Al guardar, se creará un pedido nuevo.
+                </p>
+              )}
+            </div>
+
+            {isEditMode && (
+              <span className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-amber-50 text-amber-600 border border-amber-100 text-[10px] font-bold uppercase tracking-[0.18em]">
+                <Edit3 size={14} />
+                Modo edición
+              </span>
+            )}
+
+            {isDuplicateMode && (
+              <span className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-indigo-50 text-indigo-600 border border-indigo-100 text-[10px] font-bold uppercase tracking-[0.18em]">
+                <Copy size={14} />
+                Nuevo desde copia
+              </span>
+            )}
+          </div>
+        </div>
 
         <div className="space-y-6">
           <div className="flex items-center gap-3 px-2">
             <div className="p-2 bg-emerald-500 text-white rounded-xl shadow-lg">
               <ShoppingBag size={20} />
             </div>
+
             <h3 className="text-xl font-semibold text-slate-800">
               1. Selección de Productos
             </h3>
@@ -328,24 +394,28 @@ const OrderForm: React.FC<OrderFormProps> = ({
                   <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest block ml-1">
                     Tipo de Tarta
                   </label>
+
                   <select
                     value={product.type}
                     onChange={e => updateProduct(product.id, 'type', e.target.value)}
                     className={`w-full px-4 py-3 bg-slate-50 border ${errors[`product_${index}_type`]
-                      ? 'border-rose-400 ring-2 ring-rose-50'
-                      : 'border-slate-200'
+                        ? 'border-rose-400 ring-2 ring-rose-50'
+                        : 'border-slate-200'
                       } rounded-2xl outline-none focus:bg-white font-medium transition-all`}
                   >
                     <option value="">Seleccionar...</option>
+
                     {activeProducts.map(t => (
                       <option key={t.id} value={t.name}>
                         {t.name}
                       </option>
                     ))}
+
                     {product.type && !activeProducts.some(ap => ap.name === product.type) && (
                       <option value={product.type}>{product.type} (Inactivo)</option>
                     )}
                   </select>
+
                   {errors[`product_${index}_type`] && (
                     <p className="text-[11px] font-normal text-rose-500 mt-1.5 ml-1 leading-none animate-in slide-in-from-top-1 transition-all">
                       {errors[`product_${index}_type`]}
@@ -357,6 +427,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                   <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest block ml-1">
                     Raciones
                   </label>
+
                   <input
                     type="number"
                     value={product.portions}
@@ -369,6 +440,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                   <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest block ml-1">
                     Contorno
                   </label>
+
                   <select
                     value={product.edge}
                     onChange={e => updateProduct(product.id, 'edge', e.target.value)}
@@ -379,6 +451,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                         {t.name}
                       </option>
                     ))}
+
                     {product.edge && !activeEdges.some(ae => ae.name === product.edge) && (
                       <option value={product.edge}>{product.edge} (Inactivo)</option>
                     )}
@@ -389,6 +462,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                   <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest block ml-1">
                     Relleno
                   </label>
+
                   <select
                     value={product.filling}
                     onChange={e => updateProduct(product.id, 'filling', e.target.value)}
@@ -399,6 +473,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                         {t.name}
                       </option>
                     ))}
+
                     {product.filling && !activeFillings.some(af => af.name === product.filling) && (
                       <option value={product.filling}>{product.filling} (Inactivo)</option>
                     )}
@@ -421,6 +496,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                   <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest block ml-1">
                     Observaciones
                   </label>
+
                   <textarea
                     value={product.message}
                     onChange={e => updateProduct(product.id, 'message', e.target.value)}
@@ -449,6 +525,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
             <div className="p-2 bg-indigo-500 text-white rounded-xl shadow-lg">
               <User size={20} />
             </div>
+
             <h3 className="text-xl font-semibold text-slate-800">
               2. Cliente y Recogida
             </h3>
@@ -459,6 +536,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
               <label className="text-sm font-medium text-slate-600 block ml-1">
                 Nombre Completo
               </label>
+
               <div className="relative">
                 <input
                   type="text"
@@ -470,20 +548,23 @@ const OrderForm: React.FC<OrderFormProps> = ({
                   }}
                   placeholder="Juana Pérez"
                   className={`w-full px-4 py-3 bg-slate-50 border ${errors.customerName
-                    ? 'border-rose-400 ring-2 ring-rose-50'
-                    : 'border-slate-200'
+                      ? 'border-rose-400 ring-2 ring-rose-50'
+                      : 'border-slate-200'
                     } rounded-2xl font-semibold transition-all shadow-sm`}
                 />
+
                 <Search
                   size={18}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-300 pointer-events-none"
                 />
               </div>
+
               {errors.customerName && (
                 <p className="text-[11px] font-normal text-rose-500 mt-1.5 ml-1 leading-none animate-in slide-in-from-top-1 transition-all">
                   {errors.customerName}
                 </p>
               )}
+
               {showSuggestions && filteredSuggestions.length > 0 && (
                 <div className="absolute top-full left-0 right-0 z-50 bg-white border border-slate-200 rounded-2xl shadow-2xl mt-2 overflow-hidden animate-in fade-in slide-in-from-top-2">
                   {filteredSuggestions.map(c => (
@@ -497,6 +578,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
                         <p className="font-semibold text-slate-800">{c.name}</p>
                         <p className="text-[11px] text-slate-500 font-medium">{c.phone}</p>
                       </div>
+
                       <UserCheck size={16} className="text-emerald-500" />
                     </button>
                   ))}
@@ -508,6 +590,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
               <label className="text-sm font-medium text-slate-600 block ml-1">
                 Teléfono
               </label>
+
               <input
                 type="text"
                 value={customerPhone}
@@ -515,10 +598,11 @@ const OrderForm: React.FC<OrderFormProps> = ({
                 onBlur={validate}
                 placeholder="600 000 000"
                 className={`w-full px-4 py-3 bg-slate-50 border ${errors.customerPhone
-                  ? 'border-rose-400 ring-2 ring-rose-50'
-                  : 'border-slate-200'
+                    ? 'border-rose-400 ring-2 ring-rose-50'
+                    : 'border-slate-200'
                   } rounded-2xl font-semibold transition-all shadow-sm`}
               />
+
               {errors.customerPhone && (
                 <p className="text-[11px] font-normal text-rose-500 mt-1.5 ml-1 leading-none animate-in slide-in-from-top-1 transition-all">
                   {errors.customerPhone}
@@ -530,6 +614,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
               <label className="text-sm font-medium text-slate-600 block ml-1">
                 <Calendar size={14} className="inline mr-1" /> Fecha
               </label>
+
               <input
                 type="date"
                 value={pickupDate}
@@ -542,6 +627,7 @@ const OrderForm: React.FC<OrderFormProps> = ({
               <label className="text-sm font-medium text-slate-600 block ml-1">
                 <Clock size={14} className="inline mr-1" /> Hora
               </label>
+
               <select
                 value={pickupTime}
                 onChange={e => setPickupTime(e.target.value)}
@@ -568,10 +654,13 @@ const OrderForm: React.FC<OrderFormProps> = ({
           <button
             type="submit"
             disabled={isSaving}
-            className="flex-[2] py-4 bg-emerald-500 text-white font-semibold text-lg rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+            className={`flex-[2] py-4 text-white font-semibold text-lg rounded-2xl shadow-lg active:scale-95 transition-all flex items-center justify-center gap-2 disabled:opacity-60 ${isEditMode
+                ? 'bg-amber-500 shadow-amber-500/20 hover:bg-amber-600'
+                : 'bg-emerald-500 shadow-emerald-500/20 hover:bg-emerald-600'
+              }`}
           >
             <Save size={24} />
-            {isSaving ? 'Guardando...' : 'Guardar Pedido'}
+            {getSubmitLabel()}
           </button>
 
           <button

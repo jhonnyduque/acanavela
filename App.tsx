@@ -1,4 +1,11 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  lazy,
+  Suspense,
+  useEffect,
+  useMemo,
+  useRef,
+  useState
+} from 'react';
 import { storageService } from './services/storageService';
 import { supabase } from './services/supabaseClient';
 import { Order, Customer, AppUser, OrderStatus } from './types';
@@ -6,9 +13,6 @@ import { Order, Customer, AppUser, OrderStatus } from './types';
 import Dashboard from './components/Dashboard';
 import OrderForm from './components/OrderForm';
 import OrderList from './components/OrderList';
-import CalendarView from './components/CalendarView';
-import StatsView from './components/StatsView';
-import ConfigView from './components/ConfigView';
 import PrivacyView from './components/PrivacyView';
 import CustomerList from './components/CustomerList';
 import Login from './components/Login';
@@ -31,6 +35,10 @@ import {
 
 import { ADMIN_PASSWORD } from './constants';
 
+const CalendarView = lazy(() => import('./components/CalendarView'));
+const StatsView = lazy(() => import('./components/StatsView'));
+const ConfigView = lazy(() => import('./components/ConfigView'));
+
 type NoticeType = 'success' | 'error' | 'warn';
 
 interface SecurityModalState {
@@ -38,6 +46,15 @@ interface SecurityModalState {
   ids: number[];
   requiresPassword: boolean;
 }
+
+const LazyFallback: React.FC<{ text?: string }> = ({ text = 'Cargando...' }) => (
+  <div className="w-full bg-white border border-slate-200 rounded-[2rem] p-10 shadow-sm">
+    <div className="flex items-center gap-3 text-slate-500">
+      <RefreshCw size={18} className="animate-spin text-emerald-500" />
+      <span className="font-medium">{text}</span>
+    </div>
+  </div>
+);
 
 const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<AppUser | null>(() => {
@@ -67,7 +84,11 @@ const App: React.FC = () => {
   });
 
   const [adminPassInput, setAdminPassInput] = useState('');
-  const [notification, setNotification] = useState<{ msg: string; type: NoticeType; id: number } | null>(null);
+  const [notification, setNotification] = useState<{
+    msg: string;
+    type: NoticeType;
+    id: number;
+  } | null>(null);
 
   const notifTimerRef = useRef<number | null>(null);
   const notifIdRef = useRef(1);
@@ -156,7 +177,6 @@ const App: React.FC = () => {
       }
 
       await storageService.saveOrder(order);
-
       await refreshData();
 
       showNotification(editingOrder ? 'Pedido actualizado' : 'Pedido registrado', 'success');
@@ -383,26 +403,34 @@ const App: React.FC = () => {
             )}
 
             {activeTab === 'calendar' && (
-              <CalendarView
-                orders={orders}
-                onOrderClick={setViewingOrder}
-              />
+              <Suspense fallback={<LazyFallback text="Cargando calendario..." />}>
+                <CalendarView
+                  orders={orders}
+                  onOrderClick={setViewingOrder}
+                />
+              </Suspense>
             )}
 
-            {activeTab === 'stats' && <StatsView orders={orders} />}
+            {activeTab === 'stats' && (
+              <Suspense fallback={<LazyFallback text="Cargando informes..." />}>
+                <StatsView orders={orders} />
+              </Suspense>
+            )}
 
             {activeTab === 'config' && (
-              <ConfigView
-                currentUser={currentUser}
-                orders={orders}
-                onImport={async () => {
-                  await refreshData();
-                }}
-                onUpdateUser={async () => {
-                  await refreshData();
-                }}
-                showNotification={showNotification}
-              />
+              <Suspense fallback={<LazyFallback text="Cargando ajustes..." />}>
+                <ConfigView
+                  currentUser={currentUser}
+                  orders={orders}
+                  onImport={async () => {
+                    await refreshData();
+                  }}
+                  onUpdateUser={async () => {
+                    await refreshData();
+                  }}
+                  showNotification={showNotification}
+                />
+              </Suspense>
             )}
 
             {activeTab === 'privacy' && <PrivacyView />}

@@ -19,7 +19,7 @@ const DEFAULT_SORT_PREFS: SortPrefs = {
 const isUuid = (value: unknown): boolean => {
   return (
     typeof value === 'string' &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value)
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
   );
 };
 
@@ -239,8 +239,8 @@ export const storageService = {
     const uniqueIds = Array.from(new Set(ids)).filter(isUuid);
 
     if (uniqueIds.length === 0) {
-      console.warn('deleteCustomers called without valid UUID ids:', ids);
-      return;
+      console.error('deleteCustomers called without valid UUID ids:', ids);
+      throw new Error('No se recibieron IDs válidos para eliminar clientes.');
     }
 
     if (uniqueIds.length !== ids.length) {

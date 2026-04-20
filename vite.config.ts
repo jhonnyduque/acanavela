@@ -9,7 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'prompt',
-      injectRegister: 'auto',          // ← CAMBIO 1: era null, ahora auto
+      injectRegister: null,
       includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
       manifest: {
         name: 'Acanavela - Gestión Pro',
@@ -41,8 +41,8 @@ export default defineConfig({
         ]
       },
       workbox: {
-        skipWaiting: false,            // ← CAMBIO 2: nuevo, fuerza que el SW espere en waiting
-        clientsClaim: false,           // ← CAMBIO 3: nuevo, evita toma de control inmediata
+        skipWaiting: false,
+        clientsClaim: false,
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
         navigateFallback: '/index.html',
         cleanupOutdatedCaches: true,

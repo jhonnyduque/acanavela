@@ -236,12 +236,47 @@ export const storageService = {
   },
 
   deleteCustomers: async (ids: string[]): Promise<void> => {
-    if (ids.length === 0) return;
-    const { error } = await supabase
+    const uniqueIds = Array.from(new Set(ids)).filter(isUuid);
+
+    if (uniqueIds.length === 0) {
+      console.warn('deleteCustomers called without valid UUID ids:', ids);
+      return;
+    }
+
+    if (uniqueIds.length !== ids.length) {
+      console.warn('Some customer ids were ignored because they are not valid UUIDs:', {
+        received: ids,
+        valid: uniqueIds,
+      });
+    }
+
+    const { data, error } = await supabase
       .from('customers')
       .delete()
-      .in('id', ids);
-    if (error) throw error;
+      .in('id', uniqueIds)
+      .select('id');
+
+    if (error) {
+      console.error('Error deleting customers from Supabase:', error);
+      throw error;
+    }
+
+    const deletedCount = data?.length ?? 0;
+
+    if (deletedCount !== uniqueIds.length) {
+      const deletedIds = new Set((data || []).map((customer) => customer.id));
+      const missingIds = uniqueIds.filter((id) => !deletedIds.has(id));
+
+      console.error('Customer delete did not affect all requested rows:', {
+        requestedIds: uniqueIds,
+        deletedIds: Array.from(deletedIds),
+        missingIds,
+      });
+
+      throw new Error(
+        `No se pudieron eliminar todos los clientes. Solicitados: ${uniqueIds.length}, eliminados: ${deletedCount}.`
+      );
+    }
   },
 
   // --- EQUIPO (Usuarios) ---
@@ -359,6 +394,7 @@ export const storageService = {
     } catch {
       // Si hay datos corruptos, ignorar y usar defaults
     }
+
     return DEFAULT_SORT_PREFS;
   },
 

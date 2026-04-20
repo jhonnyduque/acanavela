@@ -19,12 +19,39 @@ const DEFAULT_SORT_PREFS: SortPrefs = {
 const isUuid = (value: unknown): boolean => {
   return (
     typeof value === 'string' &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{12}$/i.test(value)
   );
 };
 
 const ensureUuid = (value: unknown): string => {
   return isUuid(value) ? String(value) : crypto.randomUUID();
+};
+
+const mapOrderFromDb = (o: any): Order => ({
+  id: o.id,
+  customerName: o.customer_name,
+  customerPhone: o.customer_phone,
+  pickupDate: o.pickup_date,
+  pickupTime: o.pickup_time,
+  status: o.status as Order['status'],
+  products: o.products,
+  createdAt: o.created_at,
+});
+
+const saveCatalogList = async (
+  type: CatalogType,
+  items: CatalogItem[]
+): Promise<void> => {
+  const payload = items.map((i: CatalogItem) => ({
+    id: ensureUuid(i.id),
+    type,
+    name: i.name,
+    is_active: i.isActive,
+    order_index: i.orderIndex ?? 0,
+  }));
+
+  const { error } = await supabase.from('catalog_items').upsert(payload);
+  if (error) throw error;
 };
 
 export const storageService = {
@@ -40,18 +67,26 @@ export const storageService = {
 
       if (error) throw error;
 
-      return (data || []).map((o: any) => ({
-        id: o.id,
-        customerName: o.customer_name,
-        customerPhone: o.customer_phone,
-        pickupDate: o.pickup_date,
-        pickupTime: o.pickup_time,
-        status: o.status as Order['status'],
-        products: o.products,
-        createdAt: o.created_at,
-      }));
+      return (data || []).map(mapOrderFromDb);
     } catch (e) {
       console.error('Storage Error (Orders):', e);
+      return [];
+    }
+  },
+
+  getDeletedOrders: async (): Promise<Order[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .not('deleted_at', 'is', null)
+        .order('deleted_at', { ascending: false });
+
+      if (error) throw error;
+
+      return (data || []).map(mapOrderFromDb);
+    } catch (e) {
+      console.error('Storage Error (Deleted Orders):', e);
       return [];
     }
   },
@@ -89,22 +124,63 @@ export const storageService = {
       result = data;
     }
 
-    return {
-      id: result.id,
-      customerName: result.customer_name,
-      customerPhone: result.customer_phone,
-      pickupDate: result.pickup_date,
-      pickupTime: result.pickup_time,
-      status: result.status as Order['status'],
-      products: result.products,
-      createdAt: result.created_at,
-    };
+    return mapOrderFromDb(result);
   },
 
-  deleteOrders: async (ids: number[]): Promise<void> => {
+  deleteOrders: async (
+    ids: number[],
+    deletedBy?: string,
+    deleteReason?: string
+  ): Promise<void> => {
+    const payload: Record<string, string | null> = {
+      deleted_at: new Date().toISOString(),
+      restored_at: null,
+      restored_by: null,
+    };
+
+    if (deletedBy && isUuid(deletedBy)) {
+      payload.deleted_by = deletedBy;
+    }
+
+    if (deleteReason?.trim()) {
+      payload.delete_reason = deleteReason.trim();
+    }
+
     const { error } = await supabase
       .from('orders')
-      .update({ deleted_at: new Date().toISOString() })
+      .update(payload)
+      .in('id', ids);
+
+    if (error) throw error;
+  },
+
+  restoreOrders: async (
+    ids: number[],
+    restoredBy?: string
+  ): Promise<void> => {
+    const payload: Record<string, string | null> = {
+      deleted_at: null,
+      deleted_by: null,
+      delete_reason: null,
+      restored_at: new Date().toISOString(),
+    };
+
+    if (restoredBy && isUuid(restoredBy)) {
+      payload.restored_by = restoredBy;
+    }
+
+    const { error } = await supabase
+      .from('orders')
+      .update(payload)
+      .in('id', ids);
+
+    if (error) throw error;
+  },
+
+  hardDeleteOrders: async (ids: number[]): Promise<void> => {
+    const { error } = await supabase
+      .from('orders')
+      .delete()
       .in('id', ids);
 
     if (error) throw error;
@@ -117,7 +193,8 @@ export const storageService = {
     const { error } = await supabase
       .from('orders')
       .update({ status })
-      .eq('id', id);
+      .eq('id', id)
+      .is('deleted_at', null);
 
     if (error) throw error;
   },
@@ -159,7 +236,6 @@ export const storageService = {
   },
 
   // --- EQUIPO (Usuarios) ---
-  // La tabla real es profiles, no app_users
   getUsers: async (): Promise<AppUser[]> => {
     try {
       const { data, error } = await supabase.from('profiles').select('*');
@@ -180,15 +256,6 @@ export const storageService = {
   },
 
   saveUser: async (user: AppUser): Promise<void> => {
-    const payload = {
-      id: isUuid(user.id) ? user.id : undefined,
-      full_name: user.name,
-      username: user.username,
-      pin_hash: user.pin,
-      role: user.role,
-      is_active: user.isActive,
-    };
-
     if (isUuid(user.id)) {
       const { error } = await supabase
         .from('profiles')
@@ -224,7 +291,6 @@ export const storageService = {
   },
 
   // --- CATÁLOGOS GLOBALES ---
-  // La tabla real es catalog_items, separada por type
   getCatalog: async (type: CatalogType): Promise<CatalogItem[]> => {
     try {
       const { data, error } = await supabase
@@ -248,37 +314,27 @@ export const storageService = {
     }
   },
 
-  getProductsCatalog: () => storageService.getCatalog('product'),
-  getEdgesCatalog: () => storageService.getCatalog('edge'),
-  getFillingsCatalog: () => storageService.getCatalog('filling'),
+  getProductsCatalog: (): Promise<CatalogItem[]> =>
+    storageService.getCatalog('product'),
 
-  saveCatalogList: async (
-    type: CatalogType,
-    items: CatalogItem[]
-  ): Promise<void> => {
-    const payload = items.map((i: CatalogItem) => ({
-      id: ensureUuid(i.id),
-      type,
-      name: i.name,
-      is_active: i.isActive,
-      order_index: i.orderIndex ?? 0,
-    }));
+  getEdgesCatalog: (): Promise<CatalogItem[]> =>
+    storageService.getCatalog('edge'),
 
-    const { error } = await supabase.from('catalog_items').upsert(payload);
-    if (error) throw error;
-  },
+  getFillingsCatalog: (): Promise<CatalogItem[]> =>
+    storageService.getCatalog('filling'),
 
-  saveProductsCatalog: (items: CatalogItem[]) =>
-    storageService.saveCatalogList('product', items),
+  saveCatalogList,
 
-  saveEdgesCatalog: (items: CatalogItem[]) =>
-    storageService.saveCatalogList('edge', items),
+  saveProductsCatalog: (items: CatalogItem[]): Promise<void> =>
+    saveCatalogList('product', items),
 
-  saveFillingsCatalog: (items: CatalogItem[]) =>
-    storageService.saveCatalogList('filling', items),
+  saveEdgesCatalog: (items: CatalogItem[]): Promise<void> =>
+    saveCatalogList('edge', items),
+
+  saveFillingsCatalog: (items: CatalogItem[]): Promise<void> =>
+    saveCatalogList('filling', items),
 
   // --- LOGS Y PREFERENCIAS ---
-  // Estas tablas no existen en tu base actual, así que devolvemos fallback
   getLogs: async (): Promise<AuditLogEntry[]> => {
     return [];
   },

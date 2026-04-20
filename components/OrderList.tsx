@@ -155,6 +155,13 @@ const OrderList: React.FC<OrderListProps> = ({
     onDelete(id);
   };
 
+  const handleBulkDelete = () => {
+    if (selectedIds.size === 0) return;
+
+    clearSearch();
+    onBulkDelete(Array.from(selectedIds));
+  };
+
   const handleWhatsApp = (order: Order) => {
     clearSearch();
     window.open(`https://wa.me/34${order.customerPhone.replace(/\D/g, '')}`, '_blank');
@@ -192,17 +199,18 @@ const OrderList: React.FC<OrderListProps> = ({
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck={false}
-            className="w-full pl-14 pr-12 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 font-semibold transition-all text-sm md:text-base"
+            className="w-full pl-14 pr-16 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-500/10 font-semibold transition-all text-sm md:text-base"
           />
 
           {hasSearch && (
             <button
               type="button"
+              onMouseDown={event => event.preventDefault()}
               onClick={clearSearch}
               aria-label="Limpiar búsqueda"
-              className="absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-rose-500 hover:border-rose-100 transition-all flex items-center justify-center"
+              className="absolute right-5 top-1/2 z-10 -translate-y-1/2 w-9 h-9 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-rose-500 hover:border-rose-100 transition-all flex items-center justify-center shadow-sm"
             >
-              <X size={16} />
+              <X size={17} />
             </button>
           )}
         </div>
@@ -221,7 +229,7 @@ const OrderList: React.FC<OrderListProps> = ({
           {selectedIds.size > 0 && (
             <button
               type="button"
-              onClick={() => onBulkDelete(Array.from(selectedIds))}
+              onClick={handleBulkDelete}
               className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-4 bg-rose-50 text-rose-500 border border-rose-100 font-semibold rounded-2xl transition-all active:scale-95 text-xs uppercase tracking-widest"
             >
               <Trash2 size={18} /> Papelera ({selectedIds.size})
@@ -279,21 +287,27 @@ const OrderList: React.FC<OrderListProps> = ({
                         )}
                       </button>
                     </th>
+
                     <th className="px-4 py-6 text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                       Referencia
                     </th>
+
                     <th className="px-4 py-6 text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                       Producto
                     </th>
+
                     <th className="px-4 py-6 text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                       Cliente
                     </th>
+
                     <th className="px-4 py-6 text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                       Entrega
                     </th>
+
                     <th className="px-4 py-6 text-[10px] font-semibold text-slate-400 uppercase tracking-widest text-center">
                       Estado
                     </th>
+
                     <th className="px-6 py-6 text-right text-[10px] font-semibold text-slate-400 uppercase tracking-widest">
                       Acciones
                     </th>
@@ -373,10 +387,10 @@ const OrderList: React.FC<OrderListProps> = ({
                               type="button"
                               onClick={() => handleAdvanceStatus(order)}
                               className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${order.status === 'Elaborado'
-                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                : order.status === 'En elaboración'
-                                  ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
-                                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                  : order.status === 'En elaboración'
+                                    ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
+                                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                                 }`}
                             >
                               {order.status}
@@ -443,8 +457,8 @@ const OrderList: React.FC<OrderListProps> = ({
                   <div
                     key={order.id}
                     className={`bg-white rounded-[2rem] p-6 border transition-all duration-300 ${selectedIds.has(order.id)
-                      ? 'border-indigo-500 ring-4 ring-indigo-500/5'
-                      : 'border-slate-200'
+                        ? 'border-indigo-500 ring-4 ring-indigo-500/5'
+                        : 'border-slate-200'
                       } shadow-sm space-y-5`}
                   >
                     <div className="flex items-start justify-between">
@@ -457,6 +471,7 @@ const OrderList: React.FC<OrderListProps> = ({
                           <h4 className="font-bold text-slate-900 text-lg leading-tight">
                             {order.customerName}
                           </h4>
+
                           <p className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-1">
                             <Clock size={12} className="text-indigo-400" /> {order.pickupTime}h ·{' '}
                             {order.pickupDate.split('-').reverse().slice(0, 2).join('/')}
@@ -487,6 +502,7 @@ const OrderList: React.FC<OrderListProps> = ({
                             <span className="font-bold text-slate-800 block">
                               {product.type}
                             </span>
+
                             <span className="text-[10px] text-slate-400 uppercase font-medium">
                               {product.edge} · {product.filling}
                             </span>
@@ -504,10 +520,10 @@ const OrderList: React.FC<OrderListProps> = ({
                         type="button"
                         onClick={() => handleAdvanceStatus(order)}
                         className={`flex-1 h-12 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${order.status === 'Elaborado'
-                          ? 'bg-emerald-500 text-white shadow-lg'
-                          : order.status === 'En elaboración'
-                            ? 'bg-amber-500 text-white shadow-lg'
-                            : 'bg-slate-100 text-slate-600'
+                            ? 'bg-emerald-500 text-white shadow-lg'
+                            : order.status === 'En elaboración'
+                              ? 'bg-amber-500 text-white shadow-lg'
+                              : 'bg-slate-100 text-slate-600'
                           }`}
                       >
                         {order.status}

@@ -38,7 +38,6 @@ const formatDate = (date: string): string => {
   }
 };
 
-
 const getDaysSince = (date: string): number | null => {
   if (!date) return null;
 
@@ -100,7 +99,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       return sorted[0]?.[0] ?? 'Sin datos';
     })();
 
-    const clientType = getClientTier(totalOrders).label;
+    const clientTier = getClientTier(totalOrders);
 
     return {
       totalOrders,
@@ -109,7 +108,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       lastOrder,
       daysSinceLastOrder,
       mostOrderedProduct,
-      clientType
+      clientTier
     };
   }, [customerOrders]);
 
@@ -146,8 +145,8 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
 
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2 mb-2">
-                  <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-bold uppercase tracking-widest">
-                    {stats.clientType}
+                  <span className={`px-3 py-1 rounded-full border text-[10px] font-bold uppercase tracking-widest ${stats.clientTier.badgeClass}`}>
+                    {stats.clientTier.label}
                   </span>
 
                   {stats.totalOrders > 0 && (

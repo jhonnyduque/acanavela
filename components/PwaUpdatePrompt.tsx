@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { RefreshCw, X, Wifi } from 'lucide-react';
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 const PwaUpdatePrompt: React.FC = () => {
   const [manualNeedRefresh, setManualNeedRefresh] = useState(false);
+  const updateIntervalRef = useRef<number | null>(null);
 
   const {
     offlineReady: [offlineReady, setOfflineReady],
@@ -37,7 +38,11 @@ const PwaUpdatePrompt: React.FC = () => {
         });
       });
 
-      setInterval(() => {
+      if (updateIntervalRef.current) {
+        window.clearInterval(updateIntervalRef.current);
+      }
+
+      updateIntervalRef.current = window.setInterval(() => {
         console.log('[PWA] Buscando actualización...');
         registration.update();
       }, 15 * 1000);
@@ -55,10 +60,29 @@ const PwaUpdatePrompt: React.FC = () => {
     }
   }, [needRefresh]);
 
+  useEffect(() => {
+    return () => {
+      if (updateIntervalRef.current) {
+        window.clearInterval(updateIntervalRef.current);
+        updateIntervalRef.current = null;
+      }
+    };
+  }, []);
+
   const close = () => {
+    console.log('[PWA] Cerrando prompt');
     setOfflineReady(false);
     setNeedRefresh(false);
     setManualNeedRefresh(false);
+  };
+
+  const handleUpdate = async () => {
+    try {
+      console.log('[PWA] Usuario solicitó actualización');
+      await updateServiceWorker(true);
+    } catch (error) {
+      console.error('[PWA] Error al actualizar Service Worker:', error);
+    }
   };
 
   const shouldShowUpdate = needRefresh || manualNeedRefresh;
@@ -66,8 +90,8 @@ const PwaUpdatePrompt: React.FC = () => {
   if (!offlineReady && !shouldShowUpdate) return null;
 
   return (
-    <div className="fixed left-4 right-4 bottom-24 lg:left-auto lg:right-6 lg:bottom-6 z-[700] animate-in slide-in-from-bottom-4">
-      <div className="mx-auto lg:mx-0 max-w-md rounded-3xl bg-slate-950 text-white shadow-2xl border border-white/10 overflow-hidden">
+    <div className="fixed left-4 right-4 bottom-24 lg:left-auto lg:right-6 lg:bottom-6 z-[700] pointer-events-none animate-in slide-in-from-bottom-4">
+      <div className="relative z-[710] pointer-events-auto mx-auto lg:mx-0 max-w-md rounded-3xl bg-slate-950 text-white shadow-2xl border border-white/10 overflow-hidden">
         <div className="p-5 flex items-start gap-4">
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 text-emerald-400 flex items-center justify-center shrink-0">
             {shouldShowUpdate ? <RefreshCw size={22} /> : <Wifi size={22} />}
@@ -86,12 +110,12 @@ const PwaUpdatePrompt: React.FC = () => {
                 : 'La aplicación quedó preparada para abrir más rápido y funcionar mejor como PWA.'}
             </p>
 
-            <div className="flex gap-3 mt-4">
+            <div className="flex gap-3 mt-4 relative z-[720]">
               {shouldShowUpdate && (
                 <button
                   type="button"
-                  onClick={() => updateServiceWorker(true)}
-                  className="flex-1 px-4 py-3 rounded-2xl bg-emerald-500 text-white text-sm font-bold shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+                  onClick={handleUpdate}
+                  className="flex-1 px-4 py-3 rounded-2xl bg-emerald-500 text-white text-sm font-bold shadow-lg shadow-emerald-500/20 transition-all hover:brightness-110 active:scale-95 cursor-pointer"
                 >
                   Actualizar ahora
                 </button>
@@ -100,7 +124,7 @@ const PwaUpdatePrompt: React.FC = () => {
               <button
                 type="button"
                 onClick={close}
-                className="px-4 py-3 rounded-2xl bg-white/10 text-white text-sm font-bold hover:bg-white/15 active:scale-95 transition-all"
+                className="px-4 py-3 rounded-2xl bg-white/10 text-white text-sm font-bold transition-all hover:bg-white/15 active:scale-95 cursor-pointer"
               >
                 Cerrar
               </button>
@@ -111,7 +135,7 @@ const PwaUpdatePrompt: React.FC = () => {
             type="button"
             onClick={close}
             aria-label="Cerrar aviso"
-            className="w-9 h-9 rounded-xl bg-white/10 text-slate-300 hover:text-white hover:bg-white/15 flex items-center justify-center shrink-0"
+            className="w-9 h-9 rounded-xl bg-white/10 text-slate-300 hover:text-white hover:bg-white/15 flex items-center justify-center shrink-0 transition-all cursor-pointer relative z-[720]"
           >
             <X size={18} />
           </button>

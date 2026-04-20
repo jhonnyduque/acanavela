@@ -24,10 +24,7 @@ const Dashboard: React.FC<DashboardProps> = ({ orders, onGoToOrders }) => {
     const current = orders.filter(o => {
       if (timeFilter === 'hoy') return o.pickupDate === todayStr;
       if (timeFilter === 'semana') {
-        const d = new Date(o.pickupDate);
-        const now = new Date();
-        const diff = (now.getTime() - d.getTime()) / (1000 * 3600 * 24);
-        return diff <= 7 && diff >= 0;
+        return o.pickupDate >= todayStr && o.pickupDate <= new Date(new Date().setDate(new Date().getDate() + 7)).toISOString().split('T')[0];
       }
       return true;
     });

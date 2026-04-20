@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { Customer, Order } from '../types';
+import { getClientTier, normalizeSpanishPhone } from '../utils';
 import {
   X,
   User,
@@ -37,14 +38,6 @@ const formatDate = (date: string): string => {
   }
 };
 
-const normalizeSpanishPhone = (phone: string): string => {
-  const clean = phone.replace(/\D/g, '');
-
-  if (clean.startsWith('34')) return clean;
-  if (clean.length === 9) return `34${clean}`;
-
-  return clean;
-};
 
 const getDaysSince = (date: string): number | null => {
   if (!date) return null;
@@ -107,15 +100,7 @@ const ClientDetailModal: React.FC<ClientDetailModalProps> = ({
       return sorted[0]?.[0] ?? 'Sin datos';
     })();
 
-    let clientType = 'Nuevo';
-
-    if (totalOrders >= 8) {
-      clientType = 'Frecuente';
-    } else if (totalOrders >= 3) {
-      clientType = 'Recurrente';
-    } else if (totalOrders >= 1) {
-      clientType = 'Ocasional';
-    }
+    const clientType = getClientTier(totalOrders).label;
 
     return {
       totalOrders,

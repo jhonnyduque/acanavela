@@ -1,6 +1,8 @@
 
 import React, { useState, useMemo } from 'react';
 import { Customer, Order } from '../types';
+import { storageService } from '../services/storageService';
+import { getClientTier, normalizeSpanishPhone } from '../utils';
 import { 
   Search, UserPlus, Edit3, Trash2, Phone, X, Save, 
   MessageCircle, ChevronUp, ChevronDown, Star, TrendingUp, Trophy, UserCheck, Users,
@@ -10,7 +12,7 @@ import {
 interface CustomerListProps {
   customers: Customer[];
   orders: Order[];
-  onSave: (customers: Customer[]) => void;
+  onSave: () => Promise<void> | void;
   onNewOrder?: () => void;
 }
 
@@ -57,10 +59,9 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
   };
 
   const getFidelityBadge = (count: number) => {
-    if (count >= 8) return { label: 'Frecuente (+8)', class: 'bg-emerald-50 text-emerald-600 border-emerald-100', icon: Trophy };
-    if (count >= 2) return { label: 'Recurrente (2-7)', class: 'bg-indigo-50 text-indigo-600 border-indigo-100', icon: TrendingUp };
-    if (count === 1) return { label: 'Nuevo (1)', class: 'bg-amber-50 text-amber-600 border-amber-100', icon: Star };
-    return { label: 'Ocasional (0)', class: 'bg-slate-50 text-slate-500 border-slate-100', icon: UserMinus };
+    const { label, badgeClass: cls, tier } = getClientTier(count);
+    const iconMap = { frequent: Trophy, recurring: TrendingUp, new: Star, occasional: UserMinus };
+    return { label, class: cls, icon: iconMap[tier] };
   };
 
   const filteredAndSortedCustomers = useMemo(() => {
@@ -112,12 +113,16 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
     }
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     if (selectedIds.size === 0) return;
-    if (window.confirm(`¿Estás seguro de eliminar los ${selectedIds.size} clientes seleccionados?`)) {
-      const remainingCustomers = customers.filter(c => !selectedIds.has(c.id));
-      onSave(remainingCustomers);
+    if (!window.confirm(`¿Estás seguro de eliminar los ${selectedIds.size} clientes seleccionados?`)) return;
+    try {
+      await storageService.deleteCustomers(Array.from(selectedIds));
       setSelectedIds(new Set());
+      await onSave();
+    } catch (err) {
+      console.error('Error eliminando clientes:', err);
+      window.alert('No se pudieron eliminar los clientes. Inténtalo de nuevo.');
     }
   };
 
@@ -340,7 +345,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
                     <td className="px-8 py-5 text-right">
                       <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button onClick={() => { setEditingCustomer(c); setNameError(null); setPhoneError(null); }} className="p-3 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 rounded-xl transition-all"><Edit3 size={18}/></button>
-                        <button onClick={() => { if(confirm('¿Eliminar cliente?')) onSave(customers.filter(cust => cust.id !== c.id)) }} className="p-3 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={18}/></button>
+                        <button onClick={async () => { if(confirm('¿Eliminar cliente?')) { try { await storageService.deleteCustomers([c.id]); await onSave(); } catch { window.alert('No se pudo eliminar. Inténtalo de nuevo.'); } } }} className="p-3 text-slate-400 hover:text-rose-500 hover:bg-rose-50 rounded-xl transition-all"><Trash2 size={18}/></button>
                       </div>
                     </td>
                   </tr>
@@ -391,14 +396,14 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
 
               <div className="flex gap-2 pt-2">
                 <button 
-                  onClick={() => window.open(`https://wa.me/34${c.phone.replace(/\D/g, '')}`, '_blank')} 
+                  onClick={() => window.open(`https://wa.me/${normalizeSpanishPhone(c.phone)}`, '_blank')} 
                   className="flex-1 h-14 bg-emerald-50 text-emerald-600 rounded-2xl border border-emerald-100 flex items-center justify-center gap-2 font-bold text-[10px] uppercase tracking-widest shadow-sm active:scale-[0.98] transition-all"
                 >
                   <MessageCircle size={18}/> WhatsApp
                 </button>
                 <div className="flex gap-2">
                   <button onClick={() => { setEditingCustomer(c); setNameError(null); setPhoneError(null); }} className="w-14 h-14 bg-slate-50 text-slate-400 rounded-2xl border border-slate-100 flex items-center justify-center active:scale-95 transition-transform"><Edit3 size={20}/></button>
-                  <button onClick={() => { if(confirm('¿Eliminar cliente?')) onSave(customers.filter(cust => cust.id !== c.id)) }} className="w-14 h-14 bg-rose-50 text-rose-500 rounded-2xl border border-rose-100 flex items-center justify-center active:scale-95 transition-transform"><Trash2 size={20}/></button>
+                  <button onClick={async () => { if(confirm('¿Eliminar cliente?')) { try { await storageService.deleteCustomers([c.id]); await onSave(); } catch { window.alert('No se pudo eliminar. Inténtalo de nuevo.'); } } }} className="w-14 h-14 bg-rose-50 text-rose-500 rounded-2xl border border-rose-100 flex items-center justify-center active:scale-95 transition-transform"><Trash2 size={20}/></button>
                 </div>
               </div>
             </div>
@@ -409,15 +414,24 @@ const CustomerList: React.FC<CustomerListProps> = ({ customers, orders, onSave, 
       {editingCustomer && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md z-[210] flex items-center justify-center p-4">
           <form 
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               if (nameError || phoneError) return;
-              if (editingCustomer.id) {
-                onSave(customers.map(c => c.id === editingCustomer.id ? editingCustomer as Customer : c));
-              } else {
-                onSave([...customers, { ...editingCustomer as Customer, id: Math.random().toString(36).substr(2, 9), createdAt: new Date().toISOString() }]);
+              try {
+                const customerToSave: Customer = editingCustomer.id
+                  ? editingCustomer as Customer
+                  : {
+                      ...(editingCustomer as Customer),
+                      id: crypto.randomUUID(),
+                      createdAt: new Date().toISOString()
+                    };
+                await storageService.saveCustomer(customerToSave);
+                setEditingCustomer(null);
+                await onSave();
+              } catch (err) {
+                console.error('Error guardando cliente:', err);
+                window.alert('No se pudo guardar el cliente. Inténtalo de nuevo.');
               }
-              setEditingCustomer(null);
             }} 
             className="bg-white rounded-[2rem] md:rounded-[3rem] w-full max-w-xl shadow-[0_32px_80px_-12px_rgba(0,0,0,0.5)] overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300"
           >

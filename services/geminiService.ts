@@ -1,13 +1,20 @@
 import { GoogleGenAI } from "@google/genai";
 import { Order } from "../types";
 
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
 export const analyzeSalesWithAI = async (orders: Order[]) => {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-  
-  const simplifiedOrders = orders.map(o => ({
+  if (!GEMINI_API_KEY) {
+    console.error("Gemini API key is missing. Expected VITE_GEMINI_API_KEY in environment variables.");
+    return "No se pudo realizar el análisis en este momento porque falta la configuración de Gemini.";
+  }
+
+  const ai = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+
+  const simplifiedOrders = orders.map((o) => ({
     date: o.pickupDate,
     status: o.status,
-    products: o.products.map(p => p.type)
+    products: o.products.map((p) => p.type),
   }));
 
   const prompt = `
@@ -23,10 +30,11 @@ export const analyzeSalesWithAI = async (orders: Order[]) => {
 
   try {
     const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
+      model: "gemini-3-flash-preview",
       contents: prompt,
     });
-    return response.text;
+
+    return response.text || "No se pudo generar una respuesta válida en este momento.";
   } catch (error) {
     console.error("AI Analysis error:", error);
     return "No se pudo realizar el análisis en este momento.";

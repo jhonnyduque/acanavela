@@ -235,6 +235,15 @@ export const storageService = {
     if (error) throw error;
   },
 
+  deleteCustomers: async (ids: string[]): Promise<void> => {
+    if (ids.length === 0) return;
+    const { error } = await supabase
+      .from('customers')
+      .delete()
+      .in('id', ids);
+    if (error) throw error;
+  },
+
   // --- EQUIPO (Usuarios) ---
   getUsers: async (): Promise<AppUser[]> => {
     try {
@@ -344,10 +353,20 @@ export const storageService = {
   },
 
   getSortPrefs: async (): Promise<SortPrefs> => {
+    try {
+      const stored = localStorage.getItem('acanavela_sort_prefs');
+      if (stored) return JSON.parse(stored) as SortPrefs;
+    } catch {
+      // Si hay datos corruptos, ignorar y usar defaults
+    }
     return DEFAULT_SORT_PREFS;
   },
 
-  saveSortPrefs: async (_prefs: SortPrefs): Promise<void> => {
-    return;
+  saveSortPrefs: async (prefs: SortPrefs): Promise<void> => {
+    try {
+      localStorage.setItem('acanavela_sort_prefs', JSON.stringify(prefs));
+    } catch {
+      // localStorage no disponible (modo privado, etc.)
+    }
   },
 };

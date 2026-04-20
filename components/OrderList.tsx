@@ -182,7 +182,7 @@ const OrderList: React.FC<OrderListProps> = ({
 
           <input
             ref={searchInputRef}
-            type="search"
+            type="text"
             name="acanavela_order_search"
             id="acanavela_order_search"
             placeholder="Buscar por cliente, teléfono o #ID..."
@@ -373,10 +373,10 @@ const OrderList: React.FC<OrderListProps> = ({
                               type="button"
                               onClick={() => handleAdvanceStatus(order)}
                               className={`px-4 py-2 rounded-xl text-[9px] font-bold uppercase tracking-widest transition-all ${order.status === 'Elaborado'
-                                  ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
-                                  : order.status === 'En elaboración'
-                                    ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
-                                    : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20'
+                                : order.status === 'En elaboración'
+                                  ? 'bg-amber-500 text-white shadow-lg shadow-amber-500/20'
+                                  : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
                                 }`}
                             >
                               {order.status}
@@ -443,8 +443,8 @@ const OrderList: React.FC<OrderListProps> = ({
                   <div
                     key={order.id}
                     className={`bg-white rounded-[2rem] p-6 border transition-all duration-300 ${selectedIds.has(order.id)
-                        ? 'border-indigo-500 ring-4 ring-indigo-500/5'
-                        : 'border-slate-200'
+                      ? 'border-indigo-500 ring-4 ring-indigo-500/5'
+                      : 'border-slate-200'
                       } shadow-sm space-y-5`}
                   >
                     <div className="flex items-start justify-between">
@@ -504,10 +504,10 @@ const OrderList: React.FC<OrderListProps> = ({
                         type="button"
                         onClick={() => handleAdvanceStatus(order)}
                         className={`flex-1 h-12 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all ${order.status === 'Elaborado'
-                            ? 'bg-emerald-500 text-white shadow-lg'
-                            : order.status === 'En elaboración'
-                              ? 'bg-amber-500 text-white shadow-lg'
-                              : 'bg-slate-100 text-slate-600'
+                          ? 'bg-emerald-500 text-white shadow-lg'
+                          : order.status === 'En elaboración'
+                            ? 'bg-amber-500 text-white shadow-lg'
+                            : 'bg-slate-100 text-slate-600'
                           }`}
                       >
                         {order.status}

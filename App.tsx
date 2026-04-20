@@ -586,7 +586,9 @@ const App: React.FC = () => {
               </Suspense>
             )}
 
-            {activeTab === 'privacy' && <PrivacyView />}
+            {activeTab === 'privacy' && (
+              <PrivacyView onDataChange={refreshData} />
+            )}
           </div>
         </main>
       </div>
@@ -720,7 +722,7 @@ const App: React.FC = () => {
             <h3 className="text-xl font-bold mb-4 text-slate-800">Confirmación de Nube</h3>
 
             <p className="text-sm text-slate-500 mb-6">
-              Esta acción eliminará permanentemente los datos de la base de datos central en Supabase.
+              Esta acción enviará el pedido a la papelera. Podrás restaurarlo desde Seguridad si fue eliminado por error.
             </p>
 
             {securityModal.requiresPassword && (
@@ -739,7 +741,7 @@ const App: React.FC = () => {
                 onClick={confirmDeletion}
                 className="flex-1 py-4 bg-rose-500 text-white rounded-xl font-bold text-xs uppercase tracking-widest shadow-lg shadow-rose-500/20 active:scale-95 transition-all"
               >
-                Eliminar Globalmente
+                Enviar a Papelera
               </button>
 
               <button
